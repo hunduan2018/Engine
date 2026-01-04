@@ -14,7 +14,7 @@
     <ProjectGuid>{110F6CA7-039D-437F-A624-8D218C14D0EF}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>D3D12DynamicIndexing</RootNamespace>
-    <ProjectName>D3D12DynamicIndexing</ProjectName>
+    <ProjectName>MEngine</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -62,7 +62,7 @@
       <MinimalRebuild>true</MinimalRebuild>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -90,7 +90,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -109,6 +109,7 @@
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\MathHelper.h" />
     <ClInclude Include="Assert.h" />
     <ClInclude Include="D3D12QueueManger.h" />
     <ClInclude Include="DescriptorHeapManagement.h" />
@@ -124,6 +125,7 @@
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\Common\MathHelper.cpp" />
     <ClCompile Include="D3D12QueueManager.cpp" />
     <ClCompile Include="DescriptorHeapManagement.cpp" />
     <ClCompile Include="Win32Application.cpp" />

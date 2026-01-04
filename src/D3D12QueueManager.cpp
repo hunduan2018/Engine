@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "D3D12QueueManger.h"
 #include "DXSampleHelper.h"
+#include "MathHelper.h"
 
 Direct3DQueue::Direct3DQueue(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE commandType)
 {

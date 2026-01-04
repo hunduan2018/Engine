@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include "MathHelper.h"
 #include <float.h>
 #include <cmath>
