@@ -32,5 +32,6 @@
 #include <vector>
 #include <wrl.h>
 #include <shellapi.h>
+#include <memory.h>
 
 #define uint64 unsigned long long

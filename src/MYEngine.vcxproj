@@ -62,7 +62,7 @@
       <MinimalRebuild>true</MinimalRebuild>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
-      <AdditionalIncludeDirectories>../Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Common;../RHI;../RHI/DX12RHI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -90,7 +90,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>../Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../Common;../RHI;../RHI/DX12RHI;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -109,7 +109,10 @@
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\Direct3DUtils.h" />
     <ClInclude Include="..\Common\MathHelper.h" />
+    <ClInclude Include="..\RHI\DX12RHI\DX12RHIResource.h" />
+    <ClInclude Include="..\RHI\RHIResource.h" />
     <ClInclude Include="Assert.h" />
     <ClInclude Include="D3D12QueueManger.h" />
     <ClInclude Include="DescriptorHeapManagement.h" />

@@ -18,6 +18,8 @@
 #include "DescriptorHeapManagement.h"
 
 using namespace DirectX;
+class Direct3DQueueManager;
+class Direct3DQueue;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
@@ -49,6 +51,7 @@ private:
     static const bool UseBundles = true;
     static const float CitySpacingInterval;
 
+    std::unique_ptr<Direct3DQueueManager> mQueueManager;
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
     CD3DX12_RECT m_scissorRect;
@@ -57,7 +60,7 @@ private:
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;
-    ComPtr<ID3D12CommandQueue> m_commandQueue;
+    Direct3DQueue* m_commandQueue;
     ComPtr<ID3D12RootSignature> m_rootSignature;
     //ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
    // ComPtr<ID3D12DescriptorHeap> m_cbvSrvHeap;

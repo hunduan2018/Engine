@@ -12,6 +12,7 @@
 #include "stdafx.h"
 #include "D3D12DynamicIndexing.h"
 #include "occcity.h"
+#include "D3D12QueueManger.h"
 
 
 const float D3D12DynamicIndexing::CitySpacingInterval = 16.0f;
@@ -26,7 +27,8 @@ D3D12DynamicIndexing::D3D12DynamicIndexing(UINT width, UINT height, std::wstring
     m_rtvDescriptorSize(0),
     m_cbvSrvDescriptorSize(0),
     m_currentFrameResourceIndex(0),
-    m_pCurrentFrameResource(nullptr)
+    m_pCurrentFrameResource(nullptr),
+    mQueueManager(nullptr)
 {
 }
 
@@ -85,13 +87,19 @@ void D3D12DynamicIndexing::LoadPipeline()
             ));
     }
 
+    if (mQueueManager == nullptr)
+    {
+        mQueueManager = std::make_unique<Direct3DQueueManager>(m_device.Get());
+    }
+
     // Describe and create the command queue.
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-    ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
-    NAME_D3D12_OBJECT(m_commandQueue);
+    m_commandQueue = mQueueManager->GetGraphicsQueue();
+    //ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)));
+    //NAME_D3D12_OBJECT(m_commandQueue);
 
     // Describe and create the swap chain.
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
@@ -105,7 +113,7 @@ void D3D12DynamicIndexing::LoadPipeline()
 
     ComPtr<IDXGISwapChain1> swapChain;
     ThrowIfFailed(factory->CreateSwapChainForHwnd(
-        m_commandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
+        m_commandQueue->Get(),        // Swap chain needs the queue so that it can force a flush on it.
         Win32Application::GetHwnd(),
         &swapChainDesc,
         nullptr,
@@ -617,34 +625,35 @@ void D3D12DynamicIndexing::LoadAssets()
     }
 
     // Close the command list and execute it to begin the initial GPU setup.
-    ThrowIfFailed(m_commandList->Close());
+    //ThrowIfFailed(m_commandList->Close());
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    m_fenceValue = m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
     {
-        ThrowIfFailed(m_device->CreateFence(m_fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-        m_fenceValue++;
+        m_commandQueue->WaitForFenceCPUBlocking(m_fenceValue);
+        //ThrowIfFailed(m_device->CreateFence(m_fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
+        //m_fenceValue++;
 
-        // Create an event handle to use for frame synchronization.
-        m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (m_fenceEvent == nullptr)
-        {
-            ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-        }
+        //// Create an event handle to use for frame synchronization.
+        //m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        //if (m_fenceEvent == nullptr)
+        //{
+        //    ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+        //}
 
-        // Wait for the command list to execute; we are reusing the same command 
-        // list in our main loop but for now, we just want to wait for setup to 
-        // complete before continuing.
+        //// Wait for the command list to execute; we are reusing the same command 
+        //// list in our main loop but for now, we just want to wait for setup to 
+        //// complete before continuing.
 
-        // Signal and increment the fence value.
-        const UINT64 fenceToWaitFor = m_fenceValue;
-        ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), fenceToWaitFor));
-        m_fenceValue++;
+        //// Signal and increment the fence value.
+        //const UINT64 fenceToWaitFor = m_fenceValue;
+        //ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), fenceToWaitFor));
+        //m_fenceValue++;
 
-        // Wait until the fence is completed.
-        ThrowIfFailed(m_fence->SetEventOnCompletion(fenceToWaitFor, m_fenceEvent));
-        WaitForSingleObject(m_fenceEvent, INFINITE);
+        //// Wait until the fence is completed.
+        //ThrowIfFailed(m_fence->SetEventOnCompletion(fenceToWaitFor, m_fenceEvent));
+        //WaitForSingleObject(m_fenceEvent, INFINITE);
     }
 
     CreateFrameResources();
@@ -668,7 +677,8 @@ void D3D12DynamicIndexing::OnUpdate()
 
     // Get current GPU progress against submitted workload. Resources still scheduled 
     // for GPU execution cannot be modified or else undefined behavior will result.
-    const UINT64 lastCompletedFence = m_fence->GetCompletedValue();
+    //const UINT64 lastCompletedFence = m_fence->GetCompletedValue();
+    const UINT64 lastCompletedFence = m_commandQueue->GetLastCompletedFence();
 
     // Move to the next frame resource.
     m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % FrameCount;
@@ -676,11 +686,12 @@ void D3D12DynamicIndexing::OnUpdate()
 
     // Make sure that this frame resource isn't still in use by the GPU.
     // If it is, wait for it to complete.
-    if (m_pCurrentFrameResource->m_fenceValue != 0 && m_pCurrentFrameResource->m_fenceValue > lastCompletedFence)
-    {
-        ThrowIfFailed(m_fence->SetEventOnCompletion(m_pCurrentFrameResource->m_fenceValue, m_fenceEvent));
-        WaitForSingleObject(m_fenceEvent, INFINITE);
-    }
+	/*if (m_pCurrentFrameResource->m_fenceValue != 0 && m_pCurrentFrameResource->m_fenceValue > lastCompletedFence)
+	{
+		ThrowIfFailed(m_fence->SetEventOnCompletion(m_pCurrentFrameResource->m_fenceValue, m_fenceEvent));
+		WaitForSingleObject(m_fenceEvent, INFINITE);
+	}*/
+    m_commandQueue->WaitForFenceCPUBlocking(m_fenceValue);
 
     m_camera.Update(static_cast<float>(m_timer.GetElapsedSeconds()));
     m_pCurrentFrameResource->UpdateConstantBuffers(m_camera.GetViewMatrix(), m_camera.GetProjectionMatrix(0.8f, m_aspectRatio));
@@ -689,16 +700,16 @@ void D3D12DynamicIndexing::OnUpdate()
 // Render the scene.
 void D3D12DynamicIndexing::OnRender()
 {
-    PIXBeginEvent(m_commandQueue.Get(), 0, L"Render");
+    PIXBeginEvent(m_commandQueue->Get(), 0, L"Render");
 
     // Record all the commands we need to render the scene into the command list.
     PopulateCommandList(m_pCurrentFrameResource);
 
     // Execute the command list.
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    m_fenceValue = m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
-    PIXEndEvent(m_commandQueue.Get());
+    PIXEndEvent(m_commandQueue->Get());
 
     // Present and update the frame index for the next frame.
     ThrowIfFailed(m_swapChain->Present(1, 0));
@@ -706,8 +717,8 @@ void D3D12DynamicIndexing::OnRender()
 
     // Signal and increment the fence value.
     m_pCurrentFrameResource->m_fenceValue = m_fenceValue;
-    ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
-    m_fenceValue++;
+    //ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
+   // m_fenceValue++;
 }
 
 void D3D12DynamicIndexing::OnDestroy()
@@ -715,19 +726,20 @@ void D3D12DynamicIndexing::OnDestroy()
     // Ensure that the GPU is no longer referencing resources that are about to be
     // cleaned up by the destructor.
     {
-        const UINT64 fence = m_fenceValue;
-        const UINT64 lastCompletedFence = m_fence->GetCompletedValue();
+       
+        //const UINT64 fence = m_fenceValue;
+        //const UINT64 lastCompletedFence = m_fence->GetCompletedValue();
+        m_commandQueue->WaitForFenceCPUBlocking(m_fenceValue);
+        //// Signal and increment the fence value.
+        //ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
+        //m_fenceValue++;
 
-        // Signal and increment the fence value.
-        ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
-        m_fenceValue++;
-
-        // Wait until the previous frame is finished.
-        if (lastCompletedFence < fence)
-        {
-            ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
-            WaitForSingleObject(m_fenceEvent, INFINITE);
-        }
+        //// Wait until the previous frame is finished.
+        //if (lastCompletedFence < fence)
+        //{
+        //    ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
+        //    WaitForSingleObject(m_fenceEvent, INFINITE);
+        //}
     }
 
     for (UINT i = 0; i < m_frameResources.size(); i++)
@@ -827,5 +839,5 @@ void D3D12DynamicIndexing::PopulateCommandList(FrameResource* pFrameResource)
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
-    ThrowIfFailed(m_commandList->Close());
+    //ThrowIfFailed(m_commandList->Close());
 }
