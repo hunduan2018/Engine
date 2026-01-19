@@ -1,0 +1,8 @@
+root = true
+
+# Keep encoding consistent across editors (especially Visual Studio on Windows)
+[*.{h,hpp,hh,inl,cpp,cxx,cc,hlsl,fx,txt,md}]
+charset = utf-8-bom
+end_of_line = crlf
+insert_final_newline = true
+

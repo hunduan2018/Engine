@@ -1,15 +1,15 @@
-#pragma once
+ï»¿#pragma once
 #include <d3d12.h>
 #include <wrl.h>
 #include <vector>
 #include <queue>
 #include <mutex>
 #include <stdexcept>
-#include "d3dx12.h" // Î¢Èí¹Ù·½¸¨Öú¿â
+#include "d3dx12.h" // å¾®è½¯å®˜æ–¹è¾…åŠ©åº“
 
 using Microsoft::WRL::ComPtr;
 
-// »ù´¡¶Ñ·â×°
+// åŸºç¡€å †å°è£…
 class DescriptorHeap {
 public:
 	DescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, UINT numDescriptors, bool isShaderVisible,UINT NodeMask = 0u)
@@ -52,21 +52,21 @@ private:
 	D3D12_DESCRIPTOR_HEAP_TYPE m_Type;
 };
 
-// ÊÊÓÃÓÚ£ºSRV (ÎÆÀí), UAV, ¾²Ì¬ CBV
-// ²ßÂÔ£ºPre-filled / Huge Array
+// é€‚ç”¨äºï¼šSRV (çº¹ç†), UAV, é™æ€ CBV
+// ç­–ç•¥ï¼šPre-filled / Huge Array
 class BindlessAllocator {
 public:
 	BindlessAllocator(ID3D12Device* device, UINT maxDescriptors)
 		: m_Heap(std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, maxDescriptors, true))
 	{
-		// ³õÊ¼»¯¿ÕÏĞÁĞ±í£¬ËùÓĞ²ÛÎ»³õÊ¼¶¼ÊÇ¿ÕµÄ
+		// åˆå§‹åŒ–ç©ºé—²åˆ—è¡¨ï¼Œæ‰€æœ‰æ§½ä½åˆå§‹éƒ½æ˜¯ç©ºçš„
 		for (UINT i = 0; i < maxDescriptors; ++i) {
 			m_FreeIndices.push(i);
 		}
 	}
 
-	// ·ÖÅäÒ»¸ö¹Ì¶¨µÄ²ÛÎ»
-	// ·µ»ØÖµ£ºIndex (ÓÃÓÚ Shader ÖĞµÄË÷Òı)
+	// åˆ†é…ä¸€ä¸ªå›ºå®šçš„æ§½ä½
+	// è¿”å›å€¼ï¼šIndex (ç”¨äº Shader ä¸­çš„ç´¢å¼•)
 	UINT Allocate(D3D12_CPU_DESCRIPTOR_HANDLE& outCpuHandle) {
 		std::lock_guard<std::mutex> lock(m_AllocationMutex);
 		if (m_FreeIndices.empty()) {
@@ -80,7 +80,7 @@ public:
 		return index;
 	}
 
-	// ÊÍ·Å²ÛÎ»
+	// é‡Šæ”¾æ§½ä½
 	void Free(UINT index) {
 		std::lock_guard<std::mutex> lock(m_AllocationMutex);
 		m_FreeIndices.push(index);
@@ -95,8 +95,8 @@ private:
 	std::mutex m_AllocationMutex;
 };
 
-// ÊÊÓÃÓÚ£ºÃ¿Ö¡±ä»¯µÄ CBV (Èç Object Transform), ¶¯Ì¬ SRV (Èç UI, Á£×Ó)
-// ²ßÂÔ£ºBasic Strategy (Linear Allocation)
+// é€‚ç”¨äºï¼šæ¯å¸§å˜åŒ–çš„ CBV (å¦‚ Object Transform), åŠ¨æ€ SRV (å¦‚ UI, ç²’å­)
+// ç­–ç•¥ï¼šBasic Strategy (Linear Allocation)
 class LinearAllocator {
 public:
 	LinearAllocator(ID3D12Device* device, UINT maxDescriptors)
@@ -105,13 +105,13 @@ public:
 	{
 	}
 
-	// Ã¿Ö¡¿ªÊ¼Ê±µ÷ÓÃ£¬ÖØÖÃÖ¸Õë
+	// æ¯å¸§å¼€å§‹æ—¶è°ƒç”¨ï¼Œé‡ç½®æŒ‡é’ˆ
 	void Reset() {
 		m_CurrentOffset = 0;
 	}
 
-	// ·ÖÅäÒ»¿éÁ¬ĞøµÄÃèÊö·ûÇøÓò
-	// ·µ»Ø£ºGPU Handle (ÓÃÓÚ SetGraphicsRootDescriptorTable)
+	// åˆ†é…ä¸€å—è¿ç»­çš„æè¿°ç¬¦åŒºåŸŸ
+	// è¿”å›ï¼šGPU Handle (ç”¨äº SetGraphicsRootDescriptorTable)
 	D3D12_GPU_DESCRIPTOR_HANDLE Allocate(UINT numDescriptors, D3D12_CPU_DESCRIPTOR_HANDLE& outCpuHandle) {
 		if (m_CurrentOffset + numDescriptors > m_MaxDescriptors) {
 			throw std::runtime_error("Linear Heap out of memory (increase size or optimize)");

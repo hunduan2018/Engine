@@ -21,6 +21,8 @@
 
 #include <windows.h>
 
+#include <cassert>
+
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <D3Dcompiler.h>

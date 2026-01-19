@@ -4,10 +4,10 @@
 #include "Direct3DUtils.h"
 #include "RHIResource.h"
 
-class DX12RHIResource
+class DX12RHIResource : public RHIResource
 {
 public:
-	DX12RHIResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES usageState);
+	DX12RHIResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES usageState,ERHIResourceType Type);
 	virtual ~DX12RHIResource();
 
 	ID3D12Resource* GetResource() { return mResource; }
@@ -25,7 +25,7 @@ protected:
 	bool mIsReady;
 };
 
-DX12RHIResource::DX12RHIResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES usageState)
+DX12RHIResource::DX12RHIResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES usageState, ERHIResourceType Type):RHIResource(Type)
 {
 	mResource = resource;
 	mUsageState = usageState;

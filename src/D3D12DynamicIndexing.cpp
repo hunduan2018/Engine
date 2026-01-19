@@ -14,6 +14,7 @@
 #include "occcity.h"
 #include "D3D12QueueManger.h"
 
+#include <cstdlib> // free
 
 const float D3D12DynamicIndexing::CitySpacingInterval = 16.0f;
 
@@ -196,6 +197,7 @@ void D3D12DynamicIndexing::LoadAssets()
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
         ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
+        UINT SignatureBufferSize = signature->GetBufferSize();
         ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
         NAME_D3D12_OBJECT(m_rootSignature);
     }
@@ -232,8 +234,8 @@ void D3D12DynamicIndexing::LoadAssets()
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
         NAME_D3D12_OBJECT(m_pipelineState);
 
-        delete pVertexShaderData;
-        delete pPixelShaderData;
+        free(pVertexShaderData);
+        free(pPixelShaderData);
     }
 
     ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
@@ -464,19 +466,19 @@ void D3D12DynamicIndexing::LoadAssets()
             m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_cityDiffuseTexture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
         }
 
-		// ¼ÙÉèÎÒÃÇÓĞÒ»¸ö¼òµ¥µÄ½á¹¹Ìå
+		// å‡è®¾æˆ‘ä»¬æœ‰ä¸€ä¸ªç®€å•çš„ç»“æ„ä½“
 		struct  ConstData
 		{
 			float bar[4];
 		};
 
-		// ¼ÙÉèÎÒÃÇÓĞÒ»Ğ©²»¶¨³¤µÄÊı¾İ¼¯
+		// å‡è®¾æˆ‘ä»¬æœ‰ä¸€äº›ä¸å®šé•¿çš„æ•°æ®é›†
 		std::vector<std::vector<ConstData>> dataSets = {
 			{ {100.0f, 250.0f, 3.0f, 4.0f}, {250.0f, 60.0f, 7.0f, 8.0f} },
 			{ {69.0f, 150.0f, 11.0f, 12.0f} },
             { {190.0f, 210.0f, 11.0f, 13.0f},{19.0f, 11.0f, 11.0f, 13.0f},{19.0f, 11.0f, 11.0f, 13.0f} },
             { {129.0f, 120.0f, 11.0f, 13.0f},{19.0f, 11.0f, 11.0f, 13.0f} }
-			// ¸ü¶àÊı¾İ¼¯...
+			// æ›´å¤šæ•°æ®é›†...
 		};
         StructBufferNum = dataSets.size();
         // SRV
@@ -489,7 +491,7 @@ void D3D12DynamicIndexing::LoadAssets()
 				size_t elementCount = dataSets[i].size();
 				size_t bufferSize = sizeof(ConstData) * elementCount;
 
-				// ´´½¨ StructuredBuffer
+				// åˆ›å»º StructuredBuffer
 				CD3DX12_HEAP_PROPERTIES defaultHeapProps(D3D12_HEAP_TYPE_DEFAULT);
 				CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
@@ -501,7 +503,7 @@ void D3D12DynamicIndexing::LoadAssets()
 					nullptr,
 					IID_PPV_ARGS(&m_cityMaterialStructures[i]));
 
-				// ´´½¨ÉÏ´«¶Ñ
+				// åˆ›å»ºä¸Šä¼ å †
 				CD3DX12_HEAP_PROPERTIES uploadHeapProps(D3D12_HEAP_TYPE_UPLOAD);
                 m_device->CreateCommittedResource(
 					&uploadHeapProps,
@@ -521,14 +523,14 @@ void D3D12DynamicIndexing::LoadAssets()
 			}
 
 
-            // Ê¹ÓÃÃüÁîÁĞ±í½«Êı¾İ´ÓÉÏ´«¶Ñ¸´ÖÆµ½ GPU µÄ StructuredBuffer
+            // ä½¿ç”¨å‘½ä»¤åˆ—è¡¨å°†æ•°æ®ä»ä¸Šä¼ å †å¤åˆ¶åˆ° GPU çš„ StructuredBuffer
 			for (size_t i = 0; i < dataSets.size(); ++i) {
                 m_commandList->CopyBufferRegion(m_cityMaterialStructures[i].Get(), 0, uploadBuffers[i], 0, sizeof(ConstData) * dataSets[i].size());
 			}
 
             StructBufferOffset = 5000;// 1 + CityMaterialCount;
 
-			// ´´½¨Ã¿¸ö StructuredBuffer µÄ SRV
+			// åˆ›å»ºæ¯ä¸ª StructuredBuffer çš„ SRV
             UINT i = 0;
 			for (; i < dataSets.size(); ++i) {
 				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -584,7 +586,7 @@ void D3D12DynamicIndexing::LoadAssets()
         }
     }
 
-    delete pMeshData;
+    free(pMeshData);
 
     // Create the depth stencil view.
     {
@@ -617,43 +619,12 @@ void D3D12DynamicIndexing::LoadAssets()
             nullptr, IID_PPV_ARGS(&m_pReadBackResource));
     }
 
-    {
-        //D3D12_HEAP_DESC HeapDesc{0};
-        //HeapDesc.Properties = CD3DX12_HEAP_PROPERTIES()
-        //ID3D12Heap* Heap;
-        //m_device->CreateHeap()
-    }
-
-    // Close the command list and execute it to begin the initial GPU setup.
-    //ThrowIfFailed(m_commandList->Close());
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
     m_fenceValue = m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
 
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
     {
         m_commandQueue->WaitForFenceCPUBlocking(m_fenceValue);
-        //ThrowIfFailed(m_device->CreateFence(m_fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
-        //m_fenceValue++;
-
-        //// Create an event handle to use for frame synchronization.
-        //m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        //if (m_fenceEvent == nullptr)
-        //{
-        //    ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-        //}
-
-        //// Wait for the command list to execute; we are reusing the same command 
-        //// list in our main loop but for now, we just want to wait for setup to 
-        //// complete before continuing.
-
-        //// Signal and increment the fence value.
-        //const UINT64 fenceToWaitFor = m_fenceValue;
-        //ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), fenceToWaitFor));
-        //m_fenceValue++;
-
-        //// Wait until the fence is completed.
-        //ThrowIfFailed(m_fence->SetEventOnCompletion(fenceToWaitFor, m_fenceEvent));
-        //WaitForSingleObject(m_fenceEvent, INFINITE);
     }
 
     CreateFrameResources();
@@ -729,7 +700,16 @@ void D3D12DynamicIndexing::OnDestroy()
        
         //const UINT64 fence = m_fenceValue;
         //const UINT64 lastCompletedFence = m_fence->GetCompletedValue();
+        // Wait for the last submitted GPU workload.
         m_commandQueue->WaitForFenceCPUBlocking(m_fenceValue);
+
+        // IMPORTANT: also wait for any GPU work queued by the last Present.
+        // The fence signaled in ExecuteCommandLists() is inserted before Present().
+        // If we exit right after Present, swapchain backbuffers can still be in-flight.
+        const UINT64 presentFence = m_commandQueue->GetNextFenceValue();
+        ThrowIfFailed(m_commandQueue->Get()->Signal(m_commandQueue->GetFence(), presentFence));
+        m_commandQueue->WaitForFenceCPUBlocking(presentFence);
+
         //// Signal and increment the fence value.
         //ThrowIfFailed(m_commandQueue->Signal(m_fence.Get(), m_fenceValue));
         //m_fenceValue++;

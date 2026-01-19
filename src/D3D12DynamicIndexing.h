@@ -16,10 +16,9 @@
 #include "FrameResource.h"
 #include "SimpleCamera.h"
 #include "DescriptorHeapManagement.h"
+#include "D3D12QueueManger.h"
 
 using namespace DirectX;
-class Direct3DQueueManager;
-class Direct3DQueue;
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account

@@ -27,13 +27,20 @@ Direct3DQueue::Direct3DQueue(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE comma
 
 Direct3DQueue::~Direct3DQueue()
 {
-	CloseHandle(mFenceEventHandle);
+	if (mFenceEventHandle)
+	{
+		CloseHandle(mFenceEventHandle);
+		mFenceEventHandle = NULL;
+	}
 
-	mFence->Release();
-	mFence = NULL;
+	if (mFence)
+	{
+		mFence->Release();
+		mFence = NULL;
+	}
 
-	mCommandQueue->Release();
-	mCommandQueue = nullptr;
+	// mCommandQueue is a ComPtr: do NOT manually Release() (would double-release).
+	mCommandQueue.Reset();
 }
 
 uint64 Direct3DQueue::PollCurrentFenceValue()

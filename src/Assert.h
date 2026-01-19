@@ -1,4 +1,4 @@
-// Assert.h
+ï»¿// Assert.h
 #pragma once
 #include <cstdio>
 #include <cstdlib>
@@ -7,10 +7,10 @@
 
 namespace Application
 {
-	// µ±¶ÏÑÔÊ§°ÜÊ±µ÷ÓÃ£º¼ÇÂ¼ĞÅÏ¢ºóÖĞ¶Ï/±ÀÀ£
+	// å½“æ–­è¨€å¤±è´¥æ—¶è°ƒç”¨ï¼šè®°å½•ä¿¡æ¯åä¸­æ–­/å´©æºƒ
 	inline void AssertFail(const char* Expr, const char* File, int Line, const char* Func, const char* Msg)
 	{
-		// »ù´¡Êä³öµ½ stderr
+		// åŸºç¡€è¾“å‡ºåˆ° stderr
 		std::fprintf(stderr,
 			"Assertion failed!\n"
 			"  Expr : %s\n"
@@ -24,7 +24,7 @@ namespace Application
 			Msg ? Msg : "(none)");
 
 #ifdef _WIN32
-		// Ò²Êä³öµ½µ÷ÊÔÆ÷
+		// ä¹Ÿè¾“å‡ºåˆ°è°ƒè¯•å™¨
 #include <windows.h>
 #include <debugapi.h>
 		char buffer[1024];
@@ -37,25 +37,25 @@ namespace Application
 			Msg ? Msg : "(none)");
 		OutputDebugStringA(buffer);
 
-		// ÈôÒÑ¸½¼Óµ÷ÊÔÆ÷£¬ÏÈÖĞ¶Ï£¬·½±ã¶¨Î»
+		// è‹¥å·²é™„åŠ è°ƒè¯•å™¨ï¼Œå…ˆä¸­æ–­ï¼Œæ–¹ä¾¿å®šä½
 		if (IsDebuggerPresent())
 		{
 			DebugBreak();
 		}
 
-		// ÖÕÖ¹½ø³Ì£¨UE µÄ check »á´¥·¢ÖÂÃü´íÎó²¢Í£Ö¹Ö´ĞĞ£©
-		// ÄãÒ²¿ÉÒÔ¸Ä³É RaiseFailFastException »ò __fastfail£¬¸ü¡°Ó²¡±µÄÖÕÖ¹
+		// ç»ˆæ­¢è¿›ç¨‹ï¼ˆUE çš„ check ä¼šè§¦å‘è‡´å‘½é”™è¯¯å¹¶åœæ­¢æ‰§è¡Œï¼‰
+		// ä½ ä¹Ÿå¯ä»¥æ”¹æˆ RaiseFailFastException æˆ– __fastfailï¼Œæ›´â€œç¡¬â€çš„ç»ˆæ­¢
 		std::abort();
 #else
-		// ·Ç Windows Æ½Ì¨£º´¥·¢¶Ïµã»ò±ÀÀ£
-		// ÈôÏ£Íû¾¡¿ÉÄÜÔÚµ÷ÊÔÆ÷Í£ÏÂ£¬¿ÉÓÃ __builtin_trap()
+		// é Windows å¹³å°ï¼šè§¦å‘æ–­ç‚¹æˆ–å´©æºƒ
+		// è‹¥å¸Œæœ›å°½å¯èƒ½åœ¨è°ƒè¯•å™¨åœä¸‹ï¼Œå¯ç”¨ __builtin_trap()
 		__builtin_trap();
-		// ¶µµ×£¨Ä³Ğ©Æ½Ì¨ __builtin_trap ¿ÉÄÜÖ±½ÓÖÕÖ¹£¬ÕâÀïµÄ abort Í¨³£²»»áÖ´ĞĞµ½£©
+		// å…œåº•ï¼ˆæŸäº›å¹³å° __builtin_trap å¯èƒ½ç›´æ¥ç»ˆæ­¢ï¼Œè¿™é‡Œçš„ abort é€šå¸¸ä¸ä¼šæ‰§è¡Œåˆ°ï¼‰
 		std::abort();
 #endif
 	}
 
-	// ¶ÔÍâµÄ¶ÏÑÔÈë¿Ú£ºÌõ¼şÎª false Ê±½øÈë AssertFail
+	// å¯¹å¤–çš„æ–­è¨€å…¥å£ï¼šæ¡ä»¶ä¸º false æ—¶è¿›å…¥ AssertFail
 	inline void Assert(bool Condition, const char* Expr, const char* File, int Line, const char* Func, const char* Msg = nullptr)
 	{
 		if (!Condition)
@@ -65,7 +65,7 @@ namespace Application
 	}
 }
 
-// ºê£ºÔÚ·Ç NDEBUG£¨Debug/Development£©ÏÂÉúĞ§£»ÔÚ NDEBUG£¨Release/Shipping£©ÏÂÎª¿Õ
+// å®ï¼šåœ¨é NDEBUGï¼ˆDebug/Developmentï¼‰ä¸‹ç”Ÿæ•ˆï¼›åœ¨ NDEBUGï¼ˆRelease/Shippingï¼‰ä¸‹ä¸ºç©º
 #ifndef NDEBUG
 #define APP_CHECK(expr) \
         ((expr) ? (void)0 : ::Application::Assert((expr), #expr, __FILE__, __LINE__, __func__, nullptr))
