@@ -6,6 +6,10 @@ project(MEngine LANGUAGES CXX)
 option(MYENGINE_BUILD_SHADERS "Compile HLSL shaders to .cso during build (requires dxc.exe)" ON)
 option(MYENGINE_USE_WINPIX "Link WinPixEventRuntime if the NuGet package exists" ON)
 
+# FBX import (optional, via Assimp)
+option(MYENGINE_ENABLE_FBX "Enable FBX import via Assimp" ON)
+option(MYENGINE_FETCH_ASSIMP "Fetch Assimp at configure time (requires internet)" OFF)
+
 # Output layout to match the existing VS project: bin/<platform>/<config>/
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set(_mengine_platform "${CMAKE_VS_PLATFORM_NAME}")
@@ -32,6 +36,7 @@ set(MENGINE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/FrameResource.cpp
   ${CMAKE_SOURCE_DIR}/src/Main.cpp
   ${CMAKE_SOURCE_DIR}/src/SimpleCamera.cpp
+  ${CMAKE_SOURCE_DIR}/Common/Mesh/MeshBuilder.cpp
   ${CMAKE_SOURCE_DIR}/src/stdafx.cpp
 )
 
@@ -48,6 +53,8 @@ set(MENGINE_HEADERS
   ${CMAKE_SOURCE_DIR}/src/d3dx12.h
   ${CMAKE_SOURCE_DIR}/src/DXSample.h
   ${CMAKE_SOURCE_DIR}/src/DXSampleHelper.h
+  ${CMAKE_SOURCE_DIR}/Common/Mesh/FStaticMesh.h
+  ${CMAKE_SOURCE_DIR}/Common/Mesh/MeshBuilder.h
   ${CMAKE_SOURCE_DIR}/src/FrameResource.h
   ${CMAKE_SOURCE_DIR}/src/occcity.h
   ${CMAKE_SOURCE_DIR}/src/SimpleCamera.h
@@ -135,6 +142,48 @@ if(MYENGINE_USE_WINPIX)
     endif()
   else()
     message(STATUS "WinPixEventRuntime package not found (or incomplete). Skip linking WinPixEventRuntime.")
+  endif()
+endif()
+
+# FBX import via Assimp (optional)
+if(MYENGINE_ENABLE_FBX)
+  set(_mengine_assimp_linked FALSE)
+
+  if(MYENGINE_FETCH_ASSIMP)
+    include(FetchContent)
+    # Keep Assimp lean
+    set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+    set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+      assimp
+      GIT_REPOSITORY https://github.com/assimp/assimp.git
+      GIT_TAG v5.4.3
+    )
+    FetchContent_MakeAvailable(assimp)
+
+    if(TARGET assimp)
+      target_link_libraries(MEngine PRIVATE assimp)
+      set(_mengine_assimp_linked TRUE)
+    endif()
+  else()
+    # Prefer a toolchain/vcpkg provided assimp.
+    find_package(assimp CONFIG QUIET)
+    if(assimp_FOUND)
+      if(TARGET assimp::assimp)
+        target_link_libraries(MEngine PRIVATE assimp::assimp)
+      elseif(TARGET assimp)
+        target_link_libraries(MEngine PRIVATE assimp)
+      endif()
+      set(_mengine_assimp_linked TRUE)
+    endif()
+  endif()
+
+  if(_mengine_assimp_linked)
+    target_compile_definitions(MEngine PRIVATE MYENGINE_WITH_ASSIMP=1)
+  else()
+    message(STATUS "Assimp not found; MeshBuilder::LoadFromFBX will return a clear error.")
   endif()
 endif()
 
