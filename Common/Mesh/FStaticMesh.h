@@ -1,18 +1,19 @@
-#pragma once
+﻿#pragma once
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include <DirectXMath.h>
+#include "../MathTypes.h"
 #include <d3d12.h>
+
 
 struct FStaticMeshVertex
 {
-	DirectX::XMFLOAT3 Position;
-	DirectX::XMFLOAT3 Normal;
-	DirectX::XMFLOAT2 UV0;
-	DirectX::XMFLOAT3 Tangent;
+	FVector3 Position;
+	FVector3 Normal;
+	FVector2 UV0;
+	FVector3 Tangent;
 };
 
 static_assert(sizeof(FStaticMeshVertex) == 44, "FStaticMeshVertex must match the sample input layout stride (44 bytes)");
@@ -34,8 +35,8 @@ public:
 	std::vector<FStaticMeshSection> Sections;
 	std::vector<std::string> MaterialNames;
 
-	DirectX::XMFLOAT3 BoundsMin = { 0,0,0 };
-	DirectX::XMFLOAT3 BoundsMax = { 0,0,0 };
+	FVector3 BoundsMin = { 0,0,0 };
+	FVector3 BoundsMax = { 0,0,0 };
 
 	void Clear()
 	{

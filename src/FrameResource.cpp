@@ -150,8 +150,10 @@ void FrameResource::PopulateCommandList(ID3D12GraphicsCommandList* pCommandList,
 
 void XM_CALLCONV FrameResource::UpdateConstantBuffers(FXMMATRIX view, CXMMATRIX projection)
 {
-    XMMATRIX model;
-    XMFLOAT4X4 mvp;
+    FSimdMatrix model;
+
+    FMatrix4x4 mvp;
+
 
     for (UINT i = 0; i < m_cityRowCount; i++)
     {

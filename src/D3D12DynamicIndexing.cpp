@@ -209,8 +209,9 @@ void D3D12DynamicIndexing::LoadAssets()
         UINT vertexShaderDataLength;
         UINT pixelShaderDataLength;
 
-        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shader_mesh_simple_vert.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
-        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"shader_mesh_dynamic_indexing_pixel.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"Shaders\\shader_mesh_simple_vert.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
+        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"Shaders\\shader_mesh_dynamic_indexing_pixel.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
+
 
         CD3DX12_RASTERIZER_DESC rasterizerStateDesc(D3D12_DEFAULT);
         rasterizerStateDesc.CullMode = D3D12_CULL_MODE_NONE;
@@ -382,8 +383,9 @@ void D3D12DynamicIndexing::LoadAssets()
 
                         // Compute the RGB value for this position along the rainbow
                         // and pack the pixel value.
-                        XMVECTOR hsl = XMVectorSet(tPrime, 0.5f, 0.5f, 1.0f);
-                        XMVECTOR rgb = XMColorHSLToRGB(hsl);
+                        FSimdVector hsl = XMVectorSet(tPrime, 0.5f, 0.5f, 1.0f);
+                        FSimdVector rgb = XMColorHSLToRGB(hsl);
+
                         cityTextureData[i][pixelIndex + 0] = static_cast<unsigned char>((255 * XMVectorGetX(rgb)));
                         cityTextureData[i][pixelIndex + 1] = static_cast<unsigned char>((255 * XMVectorGetY(rgb)));
                         cityTextureData[i][pixelIndex + 2] = static_cast<unsigned char>((255 * XMVectorGetZ(rgb)));
@@ -737,6 +739,23 @@ void D3D12DynamicIndexing::OnKeyUp(UINT8 key)
 {
     m_camera.OnKeyUp(key);
 }
+
+void D3D12DynamicIndexing::OnRButtonDown(int x, int y)
+{
+    m_camera.OnRButtonDown(x, y);
+}
+
+void D3D12DynamicIndexing::OnRButtonUp(int x, int y)
+{
+    m_camera.OnRButtonUp(x, y);
+}
+
+void D3D12DynamicIndexing::OnMouseMove(WPARAM btnState, int x, int y)
+{
+    (void)btnState;
+    m_camera.OnMouseMove(x, y);
+}
+
 
 // Create the resources that will be used every frame.
 void D3D12DynamicIndexing::CreateFrameResources()

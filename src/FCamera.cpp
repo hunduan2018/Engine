@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -10,9 +10,15 @@
 //*********************************************************
 
 #include "stdafx.h"
-#include "SimpleCamera.h"
+#include "FCamera.h"
 
-SimpleCamera::SimpleCamera():
+// Define the pitch limit margin to prevent singularities
+// When pitch approaches ±π/2, cos(pitch) approaches 0, causing numerical instability
+constexpr float PITCH_LIMIT_MARGIN = 0.01f;
+constexpr float MAX_PITCH = XM_PIDIV2 - PITCH_LIMIT_MARGIN;
+constexpr float MIN_PITCH = -XM_PIDIV2 + PITCH_LIMIT_MARGIN;
+
+FCamera::FCamera() :
     m_initialPosition(0, 0, 0),
     m_position(m_initialPosition),
     m_yaw(XM_PI),
@@ -21,27 +27,74 @@ SimpleCamera::SimpleCamera():
     m_upDirection(0, 1, 0),
     m_moveSpeed(20.0f),
     m_turnSpeed(XM_PIDIV2),
+    m_mouseSensitivity(0.003f),
+    m_isRButtonDown(false),
+    m_lastMouseX(0),
+    m_lastMouseY(0),
     m_keysPressed{}
 {
 }
 
-void SimpleCamera::Init(XMFLOAT3 position)
+void FCamera::Init(FVector3 position)
 {
     m_initialPosition = position;
     Reset();
 }
 
-void SimpleCamera::SetMoveSpeed(float unitsPerSecond)
+void FCamera::SetMoveSpeed(float unitsPerSecond)
 {
     m_moveSpeed = unitsPerSecond;
 }
 
-void SimpleCamera::SetTurnSpeed(float radiansPerSecond)
+void FCamera::SetTurnSpeed(float radiansPerSecond)
 {
     m_turnSpeed = radiansPerSecond;
 }
 
-void SimpleCamera::Reset()
+void FCamera::SetMouseSensitivity(float radiansPerPixel)
+{
+    m_mouseSensitivity = radiansPerPixel;
+}
+
+void FCamera::OnRButtonDown(int x, int y)
+{
+    m_isRButtonDown = true;
+    m_lastMouseX = x;
+    m_lastMouseY = y;
+}
+
+void FCamera::OnRButtonUp(int x, int y)
+{
+    (void)x;
+    (void)y;
+    m_isRButtonDown = false;
+}
+
+void FCamera::OnMouseMove(int x, int y)
+{
+    if (!m_isRButtonDown)
+    {
+        return;
+    }
+
+    const int dx = x - m_lastMouseX;
+    const int dy = y - m_lastMouseY;
+
+    // Windows screen coordinates: y increases downward.
+    // Match current keyboard scheme: left => yaw+, right => yaw-.
+    m_yaw -= dx * m_mouseSensitivity;
+    m_pitch -= dy * m_mouseSensitivity;
+
+    // Clamp pitch to prevent singularities at ±π/2
+    // Using std::clamp for better readability
+    m_pitch = min(m_pitch, MAX_PITCH);
+    m_pitch = max(m_pitch, MIN_PITCH);
+
+    m_lastMouseX = x;
+    m_lastMouseY = y;
+}
+
+void FCamera::Reset()
 {
     m_position = m_initialPosition;
     m_yaw = XM_PI;
@@ -49,10 +102,10 @@ void SimpleCamera::Reset()
     m_lookDirection = { 0, 0, -1 };
 }
 
-void SimpleCamera::Update(float elapsedSeconds)
+void FCamera::Update(float elapsedSeconds)
 {
     // Calculate the move vector in camera space.
-    XMFLOAT3 move(0, 0, 0);
+    FVector3 move(0, 0, 0);
 
     if (m_keysPressed.a)
         move.x -= 1.0f;
@@ -65,13 +118,13 @@ void SimpleCamera::Update(float elapsedSeconds)
 
     if (fabs(move.x) > 0.1f && fabs(move.z) > 0.1f)
     {
-        XMVECTOR vector = XMVector3Normalize(XMLoadFloat3(&move));
+        FSimdVector vector = XMVector3Normalize(XMLoadFloat3(&move));
         move.x = XMVectorGetX(vector);
         move.z = XMVectorGetZ(vector);
     }
 
-    float moveInterval = m_moveSpeed * elapsedSeconds;
-    float rotateInterval = m_turnSpeed * elapsedSeconds;
+    const float moveInterval = m_moveSpeed * elapsedSeconds;
+    const float rotateInterval = m_turnSpeed * elapsedSeconds;
 
     if (m_keysPressed.left)
         m_yaw += rotateInterval;
@@ -82,34 +135,35 @@ void SimpleCamera::Update(float elapsedSeconds)
     if (m_keysPressed.down)
         m_pitch -= rotateInterval;
 
-    // Prevent looking too far up or down.
-    m_pitch = min(m_pitch, XM_PIDIV4);
-    m_pitch = max(-XM_PIDIV4, m_pitch);
+    // Clamp pitch to prevent singularities at ±π/2
+    // When pitch approaches ±π/2, cos(pitch) approaches 0, causing numerical instability
+    m_pitch = min(m_pitch, MAX_PITCH);
+    m_pitch = max(m_pitch, MIN_PITCH);
 
     // Move the camera in model space.
-    float x = move.x * -cosf(m_yaw) - move.z * sinf(m_yaw);
-    float z = move.x * sinf(m_yaw) - move.z * cosf(m_yaw);
+    const float x = move.x * -cosf(m_yaw) - move.z * sinf(m_yaw);
+    const float z = move.x * sinf(m_yaw) - move.z * cosf(m_yaw);
     m_position.x += x * moveInterval;
     m_position.z += z * moveInterval;
 
     // Determine the look direction.
-    float r = cosf(m_pitch);
+    const float r = cosf(m_pitch);
     m_lookDirection.x = r * sinf(m_yaw);
     m_lookDirection.y = sinf(m_pitch);
     m_lookDirection.z = r * cosf(m_yaw);
 }
 
-XMMATRIX SimpleCamera::GetViewMatrix()
+FSimdMatrix FCamera::GetViewMatrix()
 {
     return XMMatrixLookToRH(XMLoadFloat3(&m_position), XMLoadFloat3(&m_lookDirection), XMLoadFloat3(&m_upDirection));
 }
 
-XMMATRIX SimpleCamera::GetProjectionMatrix(float fov, float aspectRatio, float nearPlane, float farPlane)
+FSimdMatrix FCamera::GetProjectionMatrix(float fov, float aspectRatio, float nearPlane, float farPlane)
 {
     return XMMatrixPerspectiveFovRH(fov, aspectRatio, nearPlane, farPlane);
 }
 
-void SimpleCamera::OnKeyDown(WPARAM key)
+void FCamera::OnKeyDown(UINT8 key)
 {
     switch (key)
     {
@@ -143,7 +197,7 @@ void SimpleCamera::OnKeyDown(WPARAM key)
     }
 }
 
-void SimpleCamera::OnKeyUp(WPARAM key)
+void FCamera::OnKeyUp(UINT8 key)
 {
     switch (key)
     {

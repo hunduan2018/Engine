@@ -23,14 +23,15 @@ namespace
 	}
 
 #ifdef MYENGINE_WITH_ASSIMP
-	static DirectX::XMFLOAT3 TransformPosition(const aiMatrix4x4& m, const aiVector3D& v)
+	static FVector3 TransformPosition(const aiMatrix4x4& m, const aiVector3D& v)
 	{
 		aiVector3D r = m * v;
 		return { r.x, r.y, r.z };
 	}
 
-	static DirectX::XMFLOAT3 TransformDirection(const aiMatrix4x4& m, const aiVector3D& v)
+	static FVector3 TransformDirection(const aiMatrix4x4& m, const aiVector3D& v)
 	{
+
 		// Use the upper-left 3x3 only.
 		aiVector3D r;
 		r.x = m.a1 * v.x + m.a2 * v.y + m.a3 * v.z;

@@ -13,9 +13,11 @@
 
 #include "DXSampleHelper.h"
 #include <windows.h>
+#include "../Common/MathTypes.h"
 
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
+
 
 class FrameResource
 {
@@ -25,7 +27,8 @@ private:
 public:
     struct SceneConstantBuffer
     {
-        XMFLOAT4X4 mvp;        // Model-view-projection (MVP) matrix.
+        FMatrix4x4 mvp;        // Model-view-projection (MVP) matrix.
+
         FLOAT padding[48];
     };
 
@@ -36,7 +39,8 @@ public:
     SceneConstantBuffer* m_pConstantBuffers;
     UINT64 m_fenceValue;
 
-    std::vector<XMFLOAT4X4> m_modelMatrices;
+    std::vector<FMatrix4x4> m_modelMatrices;
+
     UINT m_cityRowCount;
     UINT m_cityColumnCount;
     UINT m_cityMaterialCount;

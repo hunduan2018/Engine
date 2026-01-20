@@ -14,8 +14,9 @@
 #include "DXSample.h"
 #include "StepTimer.h"
 #include "FrameResource.h"
-#include "SimpleCamera.h"
+#include "FCamera.h"
 #include "DescriptorHeapManagement.h"
+
 #include "D3D12QueueManger.h"
 
 using namespace DirectX;
@@ -38,6 +39,10 @@ public:
     virtual void OnDestroy();
     virtual void OnKeyDown(UINT8 key);
     virtual void OnKeyUp(UINT8 key);
+    virtual void OnRButtonDown(int x, int y);
+    virtual void OnRButtonUp(int x, int y);
+    virtual void OnMouseMove(WPARAM btnState, int x, int y);
+
 
 private:
     static const UINT FrameCount = 3;
@@ -92,7 +97,8 @@ private:
     StepTimer m_timer;
     UINT m_cbvSrvDescriptorSize;
     UINT m_rtvDescriptorSize;
-    SimpleCamera m_camera;
+    FCamera m_camera;
+
 
     // Frame resources.
     std::vector<FrameResource*> m_frameResources;

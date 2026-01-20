@@ -101,7 +101,37 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
         }
         return 0;
 
+    case WM_RBUTTONDOWN:
+        if (pSample)
+        {
+            SetCapture(hWnd);
+            const int x = static_cast<int>(static_cast<short>(LOWORD(lParam)));
+            const int y = static_cast<int>(static_cast<short>(HIWORD(lParam)));
+            pSample->OnRButtonDown(x, y);
+        }
+        return 0;
+
+    case WM_RBUTTONUP:
+        if (pSample)
+        {
+            ReleaseCapture();
+            const int x = static_cast<int>(static_cast<short>(LOWORD(lParam)));
+            const int y = static_cast<int>(static_cast<short>(HIWORD(lParam)));
+            pSample->OnRButtonUp(x, y);
+        }
+        return 0;
+
+    case WM_MOUSEMOVE:
+        if (pSample)
+        {
+            const int x = static_cast<int>(static_cast<short>(LOWORD(lParam)));
+            const int y = static_cast<int>(static_cast<short>(HIWORD(lParam)));
+            pSample->OnMouseMove(wParam, x, y);
+        }
+        return 0;
+
     case WM_PAINT:
+
         if (pSample)
         {
             pSample->OnUpdate();

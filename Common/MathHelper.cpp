@@ -30,16 +30,17 @@ float MathHelper::AngleFromXY(float x, float y)
 	return theta;
 }
 
-XMVECTOR MathHelper::RandUnitVec3()
+FSimdVector MathHelper::RandUnitVec3()
 {
-	XMVECTOR One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
-	XMVECTOR Zero = XMVectorZero();
+	FSimdVector One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
+	FSimdVector Zero = XMVectorZero();
+
 
 	// Keep trying until we get a point on/in the hemisphere.
 	while (true)
 	{
 		// Generate random point in the cube [-1,1]^3.
-		XMVECTOR v = XMVectorSet(MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), 0.0f);
+		FSimdVector v = XMVectorSet(MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), 0.0f);
 
 		// Ignore points outside the unit sphere in order to get an even distribution 
 		// over the unit sphere.  Otherwise points will clump more on the sphere near 
@@ -49,19 +50,21 @@ XMVECTOR MathHelper::RandUnitVec3()
 			continue;
 
 		return XMVector3Normalize(v);
+
 	}
 }
 
-XMVECTOR MathHelper::RandHemisphereUnitVec3(XMVECTOR n)
+FSimdVector MathHelper::RandHemisphereUnitVec3(FSimdVector n)
 {
-	XMVECTOR One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
-	XMVECTOR Zero = XMVectorZero();
+	FSimdVector One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
+	FSimdVector Zero = XMVectorZero();
+
 
 	// Keep trying until we get a point on/in the hemisphere.
 	while (true)
 	{
 		// Generate random point in the cube [-1,1]^3.
-		XMVECTOR v = XMVectorSet(MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), 0.0f);
+		FSimdVector v = XMVectorSet(MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), 0.0f);
 
 		// Ignore points outside the unit sphere in order to get an even distribution 
 		// over the unit sphere.  Otherwise points will clump more on the sphere near 
@@ -75,5 +78,6 @@ XMVECTOR MathHelper::RandHemisphereUnitVec3(XMVECTOR n)
 			continue;
 
 		return XMVector3Normalize(v);
+
 	}
 }

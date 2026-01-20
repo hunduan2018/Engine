@@ -35,7 +35,8 @@ set(MENGINE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/DXSample.cpp
   ${CMAKE_SOURCE_DIR}/src/FrameResource.cpp
   ${CMAKE_SOURCE_DIR}/src/Main.cpp
-  ${CMAKE_SOURCE_DIR}/src/SimpleCamera.cpp
+  ${CMAKE_SOURCE_DIR}/src/FCamera.cpp
+
   ${CMAKE_SOURCE_DIR}/Common/Mesh/MeshBuilder.cpp
   ${CMAKE_SOURCE_DIR}/src/stdafx.cpp
 )
@@ -57,15 +58,17 @@ set(MENGINE_HEADERS
   ${CMAKE_SOURCE_DIR}/Common/Mesh/MeshBuilder.h
   ${CMAKE_SOURCE_DIR}/src/FrameResource.h
   ${CMAKE_SOURCE_DIR}/src/occcity.h
-  ${CMAKE_SOURCE_DIR}/src/SimpleCamera.h
+  ${CMAKE_SOURCE_DIR}/src/FCamera.h
+
   ${CMAKE_SOURCE_DIR}/src/StepTimer.h
   ${CMAKE_SOURCE_DIR}/src/stdafx.h
 )
 
 set(MENGINE_SHADERS
-  ${CMAKE_SOURCE_DIR}/src/shader_mesh_dynamic_indexing_pixel.hlsl
-  ${CMAKE_SOURCE_DIR}/src/shader_mesh_simple_vert.hlsl
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_dynamic_indexing_pixel.hlsl
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_simple_vert.hlsl
 )
+
 
 # Keep shader sources visible in IDE, but do NOT let Visual Studio try to compile them via fxc.
 # (We compile them ourselves with dxc in a POST_BUILD step below.)
@@ -207,18 +210,20 @@ if(MSVC AND MYENGINE_BUILD_SHADERS)
   endif()
 
   add_custom_command(TARGET MEngine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:MEngine>/Shaders"
     COMMAND "${DXC_EXE}" -nologo
             -E VSMain
             -T $<IF:$<CONFIG:Debug>,vs_6_0,vs_5_0>
-            -Fo "$<TARGET_FILE_DIR:MEngine>/shader_mesh_simple_vert.cso"
-            "${CMAKE_SOURCE_DIR}/src/shader_mesh_simple_vert.hlsl"
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_mesh_simple_vert.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_simple_vert.hlsl"
     COMMAND "${DXC_EXE}" -nologo
             -E PSMain
             -T $<IF:$<CONFIG:Debug>,ps_6_0,ps_5_1>
             /enable_unbounded_descriptor_tables
-            -Fo "$<TARGET_FILE_DIR:MEngine>/shader_mesh_dynamic_indexing_pixel.cso"
-            "${CMAKE_SOURCE_DIR}/src/shader_mesh_dynamic_indexing_pixel.hlsl"
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_mesh_dynamic_indexing_pixel.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_dynamic_indexing_pixel.hlsl"
     VERBATIM)
+
 endif()
 
 # Nice source grouping in Visual Studio

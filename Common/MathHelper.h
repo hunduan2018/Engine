@@ -1,8 +1,9 @@
 #pragma once
 
 #include <Windows.h>
-#include <DirectXMath.h>
+#include "MathTypes.h"
 #include <cstdint>
+
 
 class MathHelper
 {
@@ -51,7 +52,7 @@ public:
 	// Returns the polar angle of the point (x,y) in [0, 2*PI).
 	static float AngleFromXY(float x, float y);
 
-	static DirectX::XMVECTOR SphericalToCartesian(float radius, float theta, float phi)
+	static FSimdVector SphericalToCartesian(float radius, float theta, float phi)
 	{
 		return DirectX::XMVectorSet(
 			radius * sinf(phi) * cosf(theta),
@@ -60,21 +61,23 @@ public:
 			1.0f);
 	}
 
-	static DirectX::XMMATRIX InverseTranspose(DirectX::CXMMATRIX M)
+	static FSimdMatrix InverseTranspose(DirectX::CXMMATRIX M)
 	{
 		// Inverse-transpose is just applied to normals.  So zero out 
 		// translation row so that it doesn't get into our inverse-transpose
 		// calculation--we don't want the inverse-transpose of the translation.
-		DirectX::XMMATRIX A = M;
+		FSimdMatrix A = M;
 		A.r[3] = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 
-		DirectX::XMVECTOR det = DirectX::XMMatrixDeterminant(A);
+		FSimdVector det = DirectX::XMMatrixDeterminant(A);
 		return DirectX::XMMatrixTranspose(DirectX::XMMatrixInverse(&det, A));
 	}
 
-	static DirectX::XMFLOAT4X4 Identity4x4()
+
+	static FMatrix4x4 Identity4x4()
 	{
-		static DirectX::XMFLOAT4X4 I(
+		static FMatrix4x4 I(
+
 			1.0f, 0.0f, 0.0f, 0.0f,
 			0.0f, 1.0f, 0.0f, 0.0f,
 			0.0f, 0.0f, 1.0f, 0.0f,
@@ -83,8 +86,9 @@ public:
 		return I;
 	}
 
-	static DirectX::XMVECTOR RandUnitVec3();
-	static DirectX::XMVECTOR RandHemisphereUnitVec3(DirectX::XMVECTOR n);
+	static FSimdVector RandUnitVec3();
+	static FSimdVector RandHemisphereUnitVec3(FSimdVector n);
+
 
 	static const float Infinity;
 	static const float Pi;
