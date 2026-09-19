@@ -131,17 +131,17 @@ Direct3DQueueManager::Direct3DQueueManager(ID3D12Device* device)
 {
 	mGraphicsQueue = new Direct3DQueue(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
 	NAME_D3D12_OBJECT_PTR(mGraphicsQueue);
-	mComputeQueue = new Direct3DQueue(device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
-	NAME_D3D12_OBJECT_PTR(mComputeQueue);
-	mCopyQueue = new Direct3DQueue(device, D3D12_COMMAND_LIST_TYPE_COPY);
-	NAME_D3D12_OBJECT_PTR(mCopyQueue);
+	//mComputeQueue = new Direct3DQueue(device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	//NAME_D3D12_OBJECT_PTR(mComputeQueue);
+	//mCopyQueue = new Direct3DQueue(device, D3D12_COMMAND_LIST_TYPE_COPY);
+	//NAME_D3D12_OBJECT_PTR(mCopyQueue);
 }
 
 Direct3DQueueManager::~Direct3DQueueManager()
 {
 	delete mGraphicsQueue;
-	delete mComputeQueue;
-	delete mCopyQueue;
+	//delete mComputeQueue;
+	//delete mCopyQueue;
 }
 
 Direct3DQueue* Direct3DQueueManager::GetQueue(D3D12_COMMAND_LIST_TYPE commandType)
@@ -175,6 +175,6 @@ void Direct3DQueueManager::WaitForFenceCPUBlocking(uint64 fenceValue)
 void Direct3DQueueManager::WaitForAllIdle()
 {
 	mGraphicsQueue->WaitForIdle();
-	mComputeQueue->WaitForIdle();
-	mCopyQueue->WaitForIdle();
+	//mComputeQueue->WaitForIdle();
+	//CopyQueue->WaitForIdle();
 }

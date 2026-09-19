@@ -722,6 +722,7 @@ void D3D12DynamicIndexing::OnDestroy()
         //    ThrowIfFailed(m_fence->SetEventOnCompletion(fence, m_fenceEvent));
         //    WaitForSingleObject(m_fenceEvent, INFINITE);
         //}
+        mQueueManager.reset();
     }
 
     for (UINT i = 0; i < m_frameResources.size(); i++)

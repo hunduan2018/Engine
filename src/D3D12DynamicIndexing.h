@@ -16,6 +16,7 @@
 #include "FrameResource.h"
 #include "FCamera.h"
 #include "DescriptorHeapManagement.h"
+#include "D3D12QueueManger.h"
 
 #include "D3D12QueueManger.h"
 
