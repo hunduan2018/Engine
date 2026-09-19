@@ -36,6 +36,7 @@ set(MENGINE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/FrameResource.cpp
   ${CMAKE_SOURCE_DIR}/src/Main.cpp
   ${CMAKE_SOURCE_DIR}/src/FCamera.cpp
+  ${CMAKE_SOURCE_DIR}/src/AgilitySDKExports.cpp
 
   ${CMAKE_SOURCE_DIR}/Common/Mesh/MeshBuilder.cpp
   ${CMAKE_SOURCE_DIR}/src/stdafx.cpp
@@ -146,6 +147,29 @@ if(MYENGINE_USE_WINPIX)
   else()
     message(STATUS "WinPixEventRuntime package not found (or incomplete). Skip linking WinPixEventRuntime.")
   endif()
+endif()
+
+# D3D12 Agility SDK (headers + app-local runtime checked into ThirdParty, like the assimp binaries)
+set(MENGINE_AGILITY_ROOT "${CMAKE_SOURCE_DIR}/ThirdParty/D3D12Agility")
+if(EXISTS "${MENGINE_AGILITY_ROOT}/include/d3d12.h" AND EXISTS "${MENGINE_AGILITY_ROOT}/bin/x64/D3D12Core.dll")
+  # Include order matters: Agility headers must come before the Windows SDK ones.
+  # target_include_directories places these before the default SDK includes.
+  target_include_directories(MEngine PRIVATE "${MENGINE_AGILITY_ROOT}/include")
+
+  # Ship the Agility runtime in a "D3D12" subfolder next to the exe (matches D3D12SDKPath export).
+  add_custom_command(TARGET MEngine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:MEngine>/D3D12"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${MENGINE_AGILITY_ROOT}/bin/x64/D3D12Core.dll"
+            "${MENGINE_AGILITY_ROOT}/bin/x64/D3D12SDKLayers.dll"
+            "$<TARGET_FILE_DIR:MEngine>/D3D12"
+    VERBATIM)
+else()
+  message(FATAL_ERROR
+    "D3D12 Agility SDK not found under ThirdParty/D3D12Agility. "
+    "Expected ThirdParty/D3D12Agility/include (headers) and ThirdParty/D3D12Agility/bin/x64/D3D12Core.dll. "
+    "Copy them from the Microsoft.Direct3D.D3D12 NuGet package (see "
+    "https://devblogs.microsoft.com/directx/gettingstarted-dx12agility/).")
 endif()
 
 # FBX import via Assimp (optional)
