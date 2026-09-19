@@ -8,5 +8,8 @@ obj/
 # CMake
 build/
 
+# Local NuGet packages (optional WinPix dependency)
+src/packages/
+
 # Secrets
 Server.txt
