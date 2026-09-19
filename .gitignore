@@ -5,5 +5,8 @@ obj/
 packages/
 *.user
 
+# CMake
+build/
+
 # Secrets
 Server.txt
