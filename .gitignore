@@ -13,3 +13,9 @@ src/packages/
 
 # Secrets
 Server.txt
+
+# Secrets
+Server.txt
+Hongkong.pem
+HongkongServer.txt
+*.pem

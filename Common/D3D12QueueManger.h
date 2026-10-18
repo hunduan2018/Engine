@@ -1,6 +1,7 @@
-#pragma once
-#include "stdafx.h"
-#include "Assert.h"
+﻿#pragma once
+#include <d3d12.h>
+#include <wrl.h>
+#include "../src/Assert.h"
 #include <mutex>
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
@@ -35,6 +36,7 @@ public:
 
 	uint64 ExecuteCommandList(ID3D12CommandList* List);
 	uint64 ExecuteCommandLists(UINT count, ID3D12CommandList* const* lists);
+	uint64 Signal();
 
 private:
 	ComPtr<ID3D12CommandQueue> mCommandQueue;

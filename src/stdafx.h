@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -20,6 +20,7 @@
 #endif
 
 #include <windows.h>
+#include <windowsx.h>
 
 #include <cassert>
 
@@ -28,7 +29,7 @@
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
 #include "../Common/MathTypes.h"
-#include "d3dx12.h"
+#include "../Common/d3dx12.h"
 
 #include <pix3.h>
 

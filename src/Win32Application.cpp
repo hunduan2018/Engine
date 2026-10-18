@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -11,8 +11,11 @@
 
 #include "stdafx.h"
 #include "Win32Application.h"
+#include "GameTimer.h"
+#include <windowsx.h>
 
 HWND Win32Application::m_hwnd = nullptr;
+GameTimer Win32Application::m_Timer;
 
 int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 {
@@ -56,6 +59,9 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 
     // Main sample loop.
     MSG msg = {};
+
+	m_Timer.Reset();
+
     while (msg.message != WM_QUIT)
     {
         // Process any messages in the queue.
@@ -64,7 +70,12 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+        else
+        {
+			m_Timer.Tick();
+        }
     }
+
 
     pSample->OnDestroy();
 

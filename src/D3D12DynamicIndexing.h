@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -15,10 +15,10 @@
 #include "StepTimer.h"
 #include "FrameResource.h"
 #include "FCamera.h"
-#include "DescriptorHeapManagement.h"
-#include "D3D12QueueManger.h"
+#include "../Common/DescriptorHeapManagement.h"
+#include "../Common/D3D12QueueManger.h"
 
-#include "D3D12QueueManger.h"
+#include "../Common/D3D12QueueManger.h"
 
 using namespace DirectX;
 

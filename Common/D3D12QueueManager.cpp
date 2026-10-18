@@ -1,6 +1,6 @@
-#include "stdafx.h"
+﻿#include "../src/stdafx.h"
 #include "D3D12QueueManger.h"
-#include "DXSampleHelper.h"
+#include "../src/DXSampleHelper.h"
 #include "MathHelper.h"
 #include "Direct3DUtils.h"
 
@@ -16,8 +16,14 @@ Direct3DQueue::Direct3DQueue(ID3D12Device* device, D3D12_COMMAND_LIST_TYPE comma
 	queueDesc.Type = mQueueType;
 	queueDesc.NodeMask = 0;
 	device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCommandQueue));
+	const wchar_t* queueName = mQueueType == D3D12_COMMAND_LIST_TYPE_DIRECT
+		? L"mGraphicsQueue"
+		: (mQueueType == D3D12_COMMAND_LIST_TYPE_COMPUTE ? L"mComputeQueue" : L"mCopyQueue");
+	ThrowIfFailed(mCommandQueue->SetName(queueName));
 	
 	ThrowIfFailed(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
+	std::wstring fenceName = std::wstring(queueName) + L".Fence";
+	ThrowIfFailed(mFence->SetName(fenceName.c_str()));
 
 	mFence->Signal(mLastCompletedFenceValue);
 
@@ -99,6 +105,13 @@ uint64 Direct3DQueue::ExecuteCommandList(ID3D12CommandList* commandList)
 
 	mCommandQueue->Signal(mFence, mNextFenceValue);
 
+	return mNextFenceValue++;
+}
+
+uint64 Direct3DQueue::Signal()
+{
+	std::lock_guard<std::mutex> lockGuard(mFenceMutex);
+	ThrowIfFailed(mCommandQueue->Signal(mFence, mNextFenceValue));
 	return mNextFenceValue++;
 }
 

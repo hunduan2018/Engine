@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+﻿cmake_minimum_required(VERSION 3.20)
 
 project(MEngine LANGUAGES CXX)
 
@@ -28,10 +28,13 @@ endforeach()
 # Source files (mirrors src/MYEngine.vcxproj)
 set(MENGINE_SOURCES
   ${CMAKE_SOURCE_DIR}/Common/MathHelper.cpp
-  ${CMAKE_SOURCE_DIR}/src/D3D12QueueManager.cpp
-  ${CMAKE_SOURCE_DIR}/src/DescriptorHeapManagement.cpp
+  ${CMAKE_SOURCE_DIR}/Common/GameTimer.cpp
+  ${CMAKE_SOURCE_DIR}/Common/D3D12QueueManager.cpp
+  ${CMAKE_SOURCE_DIR}/Common/DescriptorHeapManagement.cpp
   ${CMAKE_SOURCE_DIR}/src/Win32Application.cpp
   ${CMAKE_SOURCE_DIR}/src/D3D12DynamicIndexing.cpp
+  ${CMAKE_SOURCE_DIR}/Common/D3DApp.cpp
+  ${CMAKE_SOURCE_DIR}/Common/d3dUtil.cpp
   ${CMAKE_SOURCE_DIR}/src/DXSample.cpp
   ${CMAKE_SOURCE_DIR}/src/FrameResource.cpp
   ${CMAKE_SOURCE_DIR}/src/Main.cpp
@@ -39,6 +42,23 @@ set(MENGINE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/AgilitySDKExports.cpp
 
   ${CMAKE_SOURCE_DIR}/Common/Mesh/MeshBuilder.cpp
+  ${CMAKE_SOURCE_DIR}/Common/Mesh/FGridMeshBuilder.cpp
+
+  ${CMAKE_SOURCE_DIR}/Renderer/FShaderManager.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FGraphicsPSOCache.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FGlobalRootSignature.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FUploadConstantRing.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FResourceUploadContext.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FInstanceAllocator.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FMaterialConstantCache.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FTextureResource.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FVertexFactory.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FStaticMeshVertexFactory.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FMeshRenderData.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FScene.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FMeshPassProcessor.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FDrawSubmitter.cpp
+  ${CMAKE_SOURCE_DIR}/Renderer/FRenderer.cpp
   ${CMAKE_SOURCE_DIR}/src/stdafx.cpp
 )
 
@@ -48,15 +68,40 @@ set(MENGINE_HEADERS
   ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RHIResource.h
   ${CMAKE_SOURCE_DIR}/RHI/RHIResource.h
   ${CMAKE_SOURCE_DIR}/src/Assert.h
-  ${CMAKE_SOURCE_DIR}/src/D3D12QueueManger.h
-  ${CMAKE_SOURCE_DIR}/src/DescriptorHeapManagement.h
+  ${CMAKE_SOURCE_DIR}/Common/D3D12QueueManger.h
+  ${CMAKE_SOURCE_DIR}/Common/DescriptorHeapManagement.h
   ${CMAKE_SOURCE_DIR}/src/Win32Application.h
   ${CMAKE_SOURCE_DIR}/src/D3D12DynamicIndexing.h
-  ${CMAKE_SOURCE_DIR}/src/d3dx12.h
+  ${CMAKE_SOURCE_DIR}/Common/D3DApp.h
+  ${CMAKE_SOURCE_DIR}/Common/d3dUtil.h
+  ${CMAKE_SOURCE_DIR}/Common/d3dx12.h
   ${CMAKE_SOURCE_DIR}/src/DXSample.h
   ${CMAKE_SOURCE_DIR}/src/DXSampleHelper.h
   ${CMAKE_SOURCE_DIR}/Common/Mesh/FStaticMesh.h
   ${CMAKE_SOURCE_DIR}/Common/Mesh/MeshBuilder.h
+  ${CMAKE_SOURCE_DIR}/Common/Mesh/FGridMeshBuilder.h
+
+  ${CMAKE_SOURCE_DIR}/Renderer/RendererTypes.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FShaderManager.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FGraphicsPSOCache.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FGlobalRootSignature.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FUploadConstantRing.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FResourceUploadContext.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FInstanceAllocator.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FMaterialConstantCache.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FTextureResource.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FVertexFactory.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FStaticMeshVertexFactory.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FMeshRenderData.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FMaterial.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FMeshBatch.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FMeshDrawCommand.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FMeshPassDrawList.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FMeshPassProcessor.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FBasePassProcessor.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FDrawSubmitter.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FScene.h
+  ${CMAKE_SOURCE_DIR}/Renderer/FRenderer.h
   ${CMAKE_SOURCE_DIR}/src/FrameResource.h
   ${CMAKE_SOURCE_DIR}/src/occcity.h
   ${CMAKE_SOURCE_DIR}/src/FCamera.h
@@ -68,6 +113,12 @@ set(MENGINE_HEADERS
 set(MENGINE_SHADERS
   ${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_dynamic_indexing_pixel.hlsl
   ${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_simple_vert.hlsl
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_common.hlsli
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_basepass_vert.hlsl
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_basepass_pixel.hlsl
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_tess_vert.hlsl
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_tess_hull.hlsl
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_tess_domain.hlsl
 )
 
 
@@ -93,6 +144,7 @@ target_compile_features(MEngine PRIVATE cxx_std_17)
 
 target_include_directories(MEngine PRIVATE
   ${CMAKE_SOURCE_DIR}/Common
+  ${CMAKE_SOURCE_DIR}/Renderer
   ${CMAKE_SOURCE_DIR}/RHI
   ${CMAKE_SOURCE_DIR}/RHI/DX12RHI
 )
@@ -120,7 +172,7 @@ if(MSVC)
 endif()
 
 # DX12 dependencies
-target_link_libraries(MEngine PRIVATE d3d12 dxgi dxguid)
+target_link_libraries(MEngine PRIVATE d3d12 dxgi dxguid d3dcompiler)
 
 # Delay-load d3d12.dll like the original project
 if(MSVC)
@@ -161,6 +213,10 @@ if(EXISTS "${MENGINE_AGILITY_ROOT}/include/d3d12.h" AND EXISTS "${MENGINE_AGILIT
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:MEngine>/D3D12"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${MENGINE_AGILITY_ROOT}/bin/x64/D3D12Core.dll"
+            "$<TARGET_FILE_DIR:MEngine>/D3D12"
+    # D3D12SDKLayers.dll is the debug layer: only requested in _DEBUG builds.
+    # Skip it for Release/Shipping (per the Agility SDK getting-started guide).
+    COMMAND ${CMAKE_COMMAND} -E "$<IF:$<CONFIG:Debug>,copy_if_different,true>"
             "${MENGINE_AGILITY_ROOT}/bin/x64/D3D12SDKLayers.dll"
             "$<TARGET_FILE_DIR:MEngine>/D3D12"
     VERBATIM)
@@ -246,6 +302,35 @@ if(MSVC AND MYENGINE_BUILD_SHADERS)
             /enable_unbounded_descriptor_tables
             -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_mesh_dynamic_indexing_pixel.cso"
             "${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_dynamic_indexing_pixel.hlsl"
+    # ---- Mesh Draw Command 渲染架构着色器 ----
+    # 统一 SM 5.1（同 PSO 内各阶段着色器模型必须一致）。本机驱动在创建 6.0 DXIL PSO
+    # 时会挂起设备（0x887A0026），且这些着色器无 SM6 专属特性（有界纹理数组 +
+    # uniform 索引），5.1 足够；需要 SM6 特性时再单独升级。
+    COMMAND "${DXC_EXE}" -nologo
+            -E VSMain
+            -T vs_5_1
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_basepass_vert.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_basepass_vert.hlsl"
+    COMMAND "${DXC_EXE}" -nologo
+            -E PSMain
+            -T ps_5_1
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_basepass_pixel.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_basepass_pixel.hlsl"
+    COMMAND "${DXC_EXE}" -nologo
+            -E VSMain
+            -T vs_5_1
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_tess_vert.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_tess_vert.hlsl"
+    COMMAND "${DXC_EXE}" -nologo
+            -E HSMain
+            -T hs_5_1
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_tess_hull.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_tess_hull.hlsl"
+    COMMAND "${DXC_EXE}" -nologo
+            -E DSMain
+            -T ds_5_1
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_tess_domain.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_tess_domain.hlsl"
     VERBATIM)
 
 endif()

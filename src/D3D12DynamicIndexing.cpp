@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -12,7 +12,7 @@
 #include "stdafx.h"
 #include "D3D12DynamicIndexing.h"
 #include "occcity.h"
-#include "D3D12QueueManger.h"
+#include "../Common/D3D12QueueManger.h"
 
 #include <cstdlib> // free
 
@@ -708,8 +708,7 @@ void D3D12DynamicIndexing::OnDestroy()
         // IMPORTANT: also wait for any GPU work queued by the last Present.
         // The fence signaled in ExecuteCommandLists() is inserted before Present().
         // If we exit right after Present, swapchain backbuffers can still be in-flight.
-        const UINT64 presentFence = m_commandQueue->GetNextFenceValue();
-        ThrowIfFailed(m_commandQueue->Get()->Signal(m_commandQueue->GetFence(), presentFence));
+        const UINT64 presentFence = m_commandQueue->Signal();
         m_commandQueue->WaitForFenceCPUBlocking(presentFence);
 
         //// Signal and increment the fence value.

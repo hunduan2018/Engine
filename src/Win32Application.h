@@ -1,4 +1,4 @@
-//*********************************************************
+﻿//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -12,6 +12,7 @@
 #pragma once
 
 #include "DXSample.h"
+#include "GameTimer.h"
 
 class DXSample;
 
@@ -25,5 +26,6 @@ protected:
     static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
+	static GameTimer m_Timer;
     static HWND m_hwnd;
 };
