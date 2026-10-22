@@ -12,7 +12,6 @@
 #include "stdafx.h"
 #include "Assert.h"
 #include "D3DApp.h"
-#include "FCamera.h"
 #include "MathHelper.h"
 
 #include "FRenderer.h"
@@ -58,7 +57,6 @@ public:
      {
          const float deltaTime = timer.DeltaTime();
          ElapsedTime += deltaTime;
-         Camera.Update(deltaTime);
 
          // 周期性输出渲染命令统计（M2/M3 验证：命令数、实例合并、PSO 状态跳过）。
          if (++FrameCounter % 120 == 0)
@@ -139,11 +137,9 @@ public:
          mCurrentBackBuffer = mSwapChain->GetCurrentBackBufferIndex();
      }
 
-     // ---- 输入转发 ----
+     // ---- 应用快捷键（相机漫游由 D3DApp 统一处理）----
      virtual void OnKeyDown(WPARAM key) override
      {
-         Camera.OnKeyDown(static_cast<UINT8>(key));
-
          switch (key)
          {
          case 'F':
@@ -166,29 +162,6 @@ public:
          default:
              break;
          }
-     }
-
-     virtual void OnKeyUp(WPARAM key) override
-     {
-         Camera.OnKeyUp(static_cast<UINT8>(key));
-     }
-
-     virtual void OnMouseDown(WPARAM buttonState, int x, int y) override
-     {
-         if ((buttonState & MK_RBUTTON) != 0)
-         {
-             Camera.OnRButtonDown(x, y);
-         }
-     }
-
-     virtual void OnMouseUp(WPARAM buttonState, int x, int y) override
-     {
-         Camera.OnRButtonUp(x, y);
-     }
-
-     virtual void OnMouseMove(WPARAM buttonState, int x, int y) override
-     {
-         Camera.OnMouseMove(x, y);
      }
 
  private:
@@ -322,6 +295,8 @@ public:
             const float viewDistance = gridRadius * 1.8f;
             Camera.Init(FVector3(0.0f, viewDistance * 0.45f, viewDistance));
             Camera.SetMoveSpeed(40.0f);
+            // Alt 环绕枢轴落在城市网格中心上方（相机正前方 viewDistance 处）。
+            CameraController.GetSettings().OrbitDistance = viewDistance;
         }
         return true;
     }
@@ -329,7 +304,6 @@ public:
     // ---- 渲染器/场景资源 ----
     std::unique_ptr<FRenderer> Renderer;
     FScene Scene;
-    FCamera Camera;
 
     std::unique_ptr<FMeshRenderData> CityMesh;
     std::unique_ptr<FTextureResource> CityTexture;

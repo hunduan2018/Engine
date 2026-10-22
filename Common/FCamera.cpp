@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // This code is licensed under the MIT License (MIT).
@@ -9,8 +9,9 @@
 //
 //*********************************************************
 
-#include "stdafx.h"
+#include "../src/stdafx.h"
 #include "FCamera.h"
+#include "MathHelper.h"
 
 // Define the pitch limit margin to prevent singularities
 // When pitch approaches ±π/2, cos(pitch) approaches 0, causing numerical instability
@@ -49,6 +50,40 @@ void FCamera::SetMoveSpeed(float unitsPerSecond)
 void FCamera::SetTurnSpeed(float radiansPerSecond)
 {
     m_turnSpeed = radiansPerSecond;
+}
+
+void FCamera::SetPosition(const FVector3& Position)
+{
+    m_position = Position;
+}
+
+void FCamera::Translate(const FVector3& WorldOffset)
+{
+    m_position.x += WorldOffset.x;
+    m_position.y += WorldOffset.y;
+    m_position.z += WorldOffset.z;
+}
+
+void FCamera::SetRotation(float Yaw, float Pitch)
+{
+    m_yaw = Yaw;
+    m_pitch = MathHelper::Clamp(Pitch, MIN_PITCH, MAX_PITCH);
+    UpdateLookDirection();
+}
+
+void FCamera::AddRotation(float DeltaYaw, float DeltaPitch)
+{
+    SetRotation(m_yaw + DeltaYaw, m_pitch + DeltaPitch);
+}
+
+FVector3 FCamera::GetRightVector() const
+{
+    // Right-handed, Y-up: forward x up points to the camera's right (pitch never reaches +-pi/2).
+    const FSimdVector Right = XMVector3Normalize(
+        XMVector3Cross(XMLoadFloat3(&m_lookDirection), XMLoadFloat3(&m_upDirection)));
+    FVector3 Result;
+    XMStoreFloat3(&Result, Right);
+    return Result;
 }
 
 void FCamera::SetMouseSensitivity(float radiansPerPixel)
@@ -146,7 +181,11 @@ void FCamera::Update(float elapsedSeconds)
     m_position.x += x * moveInterval;
     m_position.z += z * moveInterval;
 
-    // Determine the look direction.
+    UpdateLookDirection();
+}
+
+void FCamera::UpdateLookDirection()
+{
     const float r = cosf(m_pitch);
     m_lookDirection.x = r * sinf(m_yaw);
     m_lookDirection.y = sinf(m_pitch);

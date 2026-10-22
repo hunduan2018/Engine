@@ -12,7 +12,7 @@
 #pragma once
 
 #include <windows.h>
-#include "../Common/MathTypes.h"
+#include "MathTypes.h"
 
 using namespace DirectX;
 
@@ -30,6 +30,22 @@ public:
     void SetMoveSpeed(float unitsPerSecond);
     void SetTurnSpeed(float radiansPerSecond);
 
+    // Direct manipulation (used by FViewportCameraController).
+    FVector3 GetPosition() const { return m_position; }
+    void SetPosition(const FVector3& Position);
+    void Translate(const FVector3& WorldOffset);
+
+    float GetYaw() const { return m_yaw; }
+    float GetPitch() const { return m_pitch; }
+    // Pitch is clamped away from +-pi/2; the look direction is refreshed immediately.
+    void SetRotation(float Yaw, float Pitch);
+    void AddRotation(float DeltaYaw, float DeltaPitch);
+
+    FVector3 GetForwardVector() const { return m_lookDirection; }
+    FVector3 GetRightVector() const;
+    FVector3 GetUpVector() const { return m_upDirection; }
+    float GetMoveSpeed() const { return m_moveSpeed; }
+
     // Mouse look
     void SetMouseSensitivity(float radiansPerPixel);
     void OnRButtonDown(int x, int y);
@@ -42,6 +58,7 @@ public:
 
 private:
     void Reset();
+    void UpdateLookDirection();
 
     struct KeysPressed
     {

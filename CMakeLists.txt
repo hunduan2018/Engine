@@ -1,4 +1,4 @@
-Ôªøcmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 
 project(MEngine LANGUAGES CXX)
 
@@ -6,9 +6,8 @@ project(MEngine LANGUAGES CXX)
 option(MYENGINE_BUILD_SHADERS "Compile HLSL shaders to .cso during build (requires dxc.exe)" ON)
 option(MYENGINE_USE_WINPIX "Link WinPixEventRuntime if the NuGet package exists" ON)
 
-# FBX import (optional, via Assimp)
+# FBX import (optional, via Assimp built from ThirdParty/assimp source)
 option(MYENGINE_ENABLE_FBX "Enable FBX import via Assimp" ON)
-option(MYENGINE_FETCH_ASSIMP "Fetch Assimp at configure time (requires internet)" OFF)
 
 # Output layout to match the existing VS project: bin/<platform>/<config>/
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
@@ -38,8 +37,10 @@ set(MENGINE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/DXSample.cpp
   ${CMAKE_SOURCE_DIR}/src/FrameResource.cpp
   ${CMAKE_SOURCE_DIR}/src/Main.cpp
-  ${CMAKE_SOURCE_DIR}/src/FCamera.cpp
+  ${CMAKE_SOURCE_DIR}/Common/FCamera.cpp
+  ${CMAKE_SOURCE_DIR}/Common/FViewportCameraController.cpp
   ${CMAKE_SOURCE_DIR}/src/AgilitySDKExports.cpp
+  ${CMAKE_SOURCE_DIR}/Common/FRenderPipeline.cpp
 
   ${CMAKE_SOURCE_DIR}/Common/Mesh/MeshBuilder.cpp
   ${CMAKE_SOURCE_DIR}/Common/Mesh/FGridMeshBuilder.cpp
@@ -65,8 +66,19 @@ set(MENGINE_SOURCES
 set(MENGINE_HEADERS
   ${CMAKE_SOURCE_DIR}/Common/Direct3DUtils.h
   ${CMAKE_SOURCE_DIR}/Common/MathHelper.h
-  ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RHIResource.h
+
+  ${CMAKE_SOURCE_DIR}/RHI/RHICommon.h
+  ${CMAKE_SOURCE_DIR}/RHI/RHIInterfaces.h
   ${CMAKE_SOURCE_DIR}/RHI/RHIResource.h
+
+  ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RHICommon.h
+  ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RHICommandList.h
+  ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RHIDevice.h
+  ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RHIPipelineObjects.h
+  ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RenderPipelinePasses.h
+  ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RHIResource.h
+  ${CMAKE_SOURCE_DIR}/RHI/DX12RHI/DX12RHIResource2.h
+
   ${CMAKE_SOURCE_DIR}/src/Assert.h
   ${CMAKE_SOURCE_DIR}/Common/D3D12QueueManger.h
   ${CMAKE_SOURCE_DIR}/Common/DescriptorHeapManagement.h
@@ -104,15 +116,23 @@ set(MENGINE_HEADERS
   ${CMAKE_SOURCE_DIR}/Renderer/FRenderer.h
   ${CMAKE_SOURCE_DIR}/src/FrameResource.h
   ${CMAKE_SOURCE_DIR}/src/occcity.h
-  ${CMAKE_SOURCE_DIR}/src/FCamera.h
+  ${CMAKE_SOURCE_DIR}/Common/FCamera.h
+  ${CMAKE_SOURCE_DIR}/Common/FViewportCameraController.h
+  ${CMAKE_SOURCE_DIR}/Common/FViewportCameraSettings.h
+  ${CMAKE_SOURCE_DIR}/Common/FRenderPipeline.h
 
   ${CMAKE_SOURCE_DIR}/src/StepTimer.h
+
   ${CMAKE_SOURCE_DIR}/src/stdafx.h
 )
+
 
 set(MENGINE_SHADERS
   ${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_dynamic_indexing_pixel.hlsl
   ${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_simple_vert.hlsl
+
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_fullscreen_vert.hlsl
+  ${CMAKE_SOURCE_DIR}/Shaders/shader_postprocess_copy_pixel.hlsl
   ${CMAKE_SOURCE_DIR}/Shaders/shader_common.hlsli
   ${CMAKE_SOURCE_DIR}/Shaders/shader_basepass_vert.hlsl
   ${CMAKE_SOURCE_DIR}/Shaders/shader_basepass_pixel.hlsl
@@ -120,6 +140,7 @@ set(MENGINE_SHADERS
   ${CMAKE_SOURCE_DIR}/Shaders/shader_tess_hull.hlsl
   ${CMAKE_SOURCE_DIR}/Shaders/shader_tess_domain.hlsl
 )
+
 
 
 # Keep shader sources visible in IDE, but do NOT let Visual Studio try to compile them via fxc.
@@ -201,7 +222,7 @@ if(MYENGINE_USE_WINPIX)
   endif()
 endif()
 
-# D3D12 Agility SDK (headers + app-local runtime checked into ThirdParty, like the assimp binaries)
+# D3D12 Agility SDK (headers + app-local runtime checked into ThirdParty)
 set(MENGINE_AGILITY_ROOT "${CMAKE_SOURCE_DIR}/ThirdParty/D3D12Agility")
 if(EXISTS "${MENGINE_AGILITY_ROOT}/include/d3d12.h" AND EXISTS "${MENGINE_AGILITY_ROOT}/bin/x64/D3D12Core.dll")
   # Include order matters: Agility headers must come before the Windows SDK ones.
@@ -228,46 +249,9 @@ else()
     "https://devblogs.microsoft.com/directx/gettingstarted-dx12agility/).")
 endif()
 
-# FBX import via Assimp (optional)
+# FBX import via Assimp (built from source, see cmake/ThirdPartyAssimp.cmake)
 if(MYENGINE_ENABLE_FBX)
-  set(_mengine_assimp_linked FALSE)
-
-  if(MYENGINE_FETCH_ASSIMP)
-    include(FetchContent)
-    # Keep Assimp lean
-    set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
-    set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
-
-    FetchContent_Declare(
-      assimp
-      GIT_REPOSITORY https://github.com/assimp/assimp.git
-      GIT_TAG v5.4.3
-    )
-    FetchContent_MakeAvailable(assimp)
-
-    if(TARGET assimp)
-      target_link_libraries(MEngine PRIVATE assimp)
-      set(_mengine_assimp_linked TRUE)
-    endif()
-  else()
-    # Prefer a toolchain/vcpkg provided assimp.
-    find_package(assimp CONFIG QUIET)
-    if(assimp_FOUND)
-      if(TARGET assimp::assimp)
-        target_link_libraries(MEngine PRIVATE assimp::assimp)
-      elseif(TARGET assimp)
-        target_link_libraries(MEngine PRIVATE assimp)
-      endif()
-      set(_mengine_assimp_linked TRUE)
-    endif()
-  endif()
-
-  if(_mengine_assimp_linked)
-    target_compile_definitions(MEngine PRIVATE MYENGINE_WITH_ASSIMP=1)
-  else()
-    message(STATUS "Assimp not found; MeshBuilder::LoadFromFBX will return a clear error.")
-  endif()
+  include("${CMAKE_SOURCE_DIR}/cmake/ThirdPartyAssimp.cmake")
 endif()
 
 # Make debugging/asset path behavior match the original helper (loads assets from exe directory)
@@ -302,10 +286,10 @@ if(MSVC AND MYENGINE_BUILD_SHADERS)
             /enable_unbounded_descriptor_tables
             -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_mesh_dynamic_indexing_pixel.cso"
             "${CMAKE_SOURCE_DIR}/Shaders/shader_mesh_dynamic_indexing_pixel.hlsl"
-    # ---- Mesh Draw Command Ê∏≤ÊüìÊû∂ÊûÑÁùÄËâ≤Âô® ----
-    # Áªü‰∏Ä SM 5.1ÔºàÂêå PSO ÂÜÖÂêÑÈò∂ÊÆµÁùÄËâ≤Âô®Ê®°ÂûãÂøÖÈ°ª‰∏ÄËá¥Ôºâ„ÄÇÊú¨Êú∫È©±Âä®Âú®ÂàõÂª∫ 6.0 DXIL PSO
-    # Êó∂‰ºöÊåÇËµ∑ËÆæÂ§áÔºà0x887A0026ÔºâÔºå‰∏îËøô‰∫õÁùÄËâ≤Âô®Êó† SM6 ‰∏ìÂ±ûÁâπÊÄßÔºàÊúâÁïåÁ∫πÁêÜÊï∞ÁªÑ +
-    # uniform Á¥¢ÂºïÔºâÔºå5.1 Ë∂≥Â§üÔºõÈúÄË¶Å SM6 ÁâπÊÄßÊó∂ÂÜçÂçïÁã¨ÂçáÁ∫ß„ÄÇ
+    # ---- Mesh Draw Command ‰÷»æº‹ππ◊≈…´∆˜ ----
+    # Õ≥“ª SM 5.1£®Õ¨ PSO ƒ⁄∏˜Ω◊∂Œ◊≈…´∆˜ƒ£–Õ±ÿ–Î“ª÷¬£©°£±æª˙«˝∂Ø‘⁄¥¥Ω® 6.0 DXIL PSO
+    #  ±ª·π“∆…Ë±∏£®0x887A0026£©£¨«“’‚–©◊≈…´∆˜Œﬁ SM6 ◊® ÙÃÿ–‘£®”–ΩÁŒ∆¿Ì ˝◊È +
+    # uniform À˜“˝£©£¨5.1 ◊„πª£ª–Ë“™ SM6 Ãÿ–‘ ±‘Ÿµ•∂¿…˝º∂°£
     COMMAND "${DXC_EXE}" -nologo
             -E VSMain
             -T vs_5_1
@@ -331,7 +315,18 @@ if(MSVC AND MYENGINE_BUILD_SHADERS)
             -T ds_5_1
             -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_tess_domain.cso"
             "${CMAKE_SOURCE_DIR}/Shaders/shader_tess_domain.hlsl"
+    COMMAND "${DXC_EXE}" -nologo
+            -E VSMain
+            -T $<IF:$<CONFIG:Debug>,vs_6_0,vs_5_0>
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_fullscreen_vert.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_fullscreen_vert.hlsl"
+    COMMAND "${DXC_EXE}" -nologo
+            -E PSMain
+            -T $<IF:$<CONFIG:Debug>,ps_6_0,ps_5_1>
+            -Fo "$<TARGET_FILE_DIR:MEngine>/Shaders/shader_postprocess_copy_pixel.cso"
+            "${CMAKE_SOURCE_DIR}/Shaders/shader_postprocess_copy_pixel.hlsl"
     VERBATIM)
+
 
 endif()
 

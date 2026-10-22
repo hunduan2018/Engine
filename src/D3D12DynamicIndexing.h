@@ -20,7 +20,10 @@
 
 #include "../Common/D3D12QueueManger.h"
 
+#include <memory>
+
 using namespace DirectX;
+
 
 // Note that while ComPtr is used to manage the lifetime of resources on the CPU,
 // it has no understanding of the lifetime of resources on the GPU. Apps must account
@@ -28,7 +31,7 @@ using namespace DirectX;
 // referenced by the GPU.
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
-
+class FRenderPipeline;
 class D3D12DynamicIndexing : public DXSample
 {
 public:
@@ -66,13 +69,9 @@ private:
     ComPtr<ID3D12Resource> m_depthStencil;
     ComPtr<ID3D12CommandAllocator> m_commandAllocator;
     Direct3DQueue* m_commandQueue;
-    ComPtr<ID3D12RootSignature> m_rootSignature;
-    //ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-   // ComPtr<ID3D12DescriptorHeap> m_cbvSrvHeap;
-   // ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-   // ComPtr<ID3D12DescriptorHeap> m_samplerHeap;
-    ComPtr<ID3D12PipelineState> m_pipelineState;
+    std::unique_ptr<FRenderPipeline> m_renderPipeline;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
+
 
 	std::unique_ptr<DescriptorHeap> m_cbvSrvDescriptorHeap;
     std::unique_ptr<DescriptorHeap> m_rtvDescriptorHeap;

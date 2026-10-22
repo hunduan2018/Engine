@@ -1,6 +1,7 @@
 ﻿// D3DApp.h
 // D3D12 应用宿主框架：窗口、设备、交换链、每帧命令对象与消息路由。
 // 渲染逻辑由子类实现（Update/Draw/输入虚函数），当前唯一子类见 src/Main.cpp。
+// 内置 UE5 风格视口相机漫游（Camera + CameraController），子类直接使用 Camera 取视图矩阵。
 
 #pragma once
 
@@ -8,6 +9,8 @@
 #include "GameTimer.h"
 #include "D3D12QueueManger.h"
 #include "DescriptorHeapManagement.h"
+#include "FCamera.h"
+#include "FViewportCameraController.h"
 
 #include <Windowsx.h>
 #include <d3d12.h>
@@ -56,6 +59,7 @@ protected:
     virtual void OnMouseDown(WPARAM buttonState, int x, int y) {}
     virtual void OnMouseUp(WPARAM buttonState, int x, int y) {}
     virtual void OnMouseMove(WPARAM buttonState, int x, int y) {}
+    virtual void OnMouseWheel(int wheelDelta) {}
     virtual void OnPause() {}
     virtual void OnResume() {}
     virtual void CalculateFrameStats();
@@ -102,6 +106,11 @@ protected:
     UINT mFrameStatsFrameCount = 0;
     float mFramesPerSecond = 0.0f;
     float mMillisecondsPerFrame = 0.0f;
+
+    // 通用视口相机：输入先交给控制器再转发子类虚函数；不需要漫游的子类可
+    // CameraController.SetEnabled(false)。声明顺序保证 Camera 先于控制器构造。
+    FCamera Camera;
+    FViewportCameraController CameraController{ Camera };
 
 protected:
     bool InitMainWindow();

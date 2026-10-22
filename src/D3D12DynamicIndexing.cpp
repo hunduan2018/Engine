@@ -14,7 +14,15 @@
 #include "occcity.h"
 #include "../Common/D3D12QueueManger.h"
 
+#include "DX12RHIDevice.h"
+#include "DX12RHICommandList.h"
+#include "DX12RHICommon.h"
+#include "DX12RHIResource2.h"
+#include "DX12RenderPipelinePasses.h"
+
+
 #include <cstdlib> // free
+
 
 const float D3D12DynamicIndexing::CitySpacingInterval = 16.0f;
 
@@ -131,7 +139,9 @@ void D3D12DynamicIndexing::LoadPipeline()
     // Create descriptor heaps.
     {
         // Describe and create a render target view (RTV) descriptor heap.
-        m_rtvDescriptorHeap = std::make_unique<DescriptorHeap>(m_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, FrameCount, false);
+        // +1 for an extra offscreen RTV (SceneColor) used by the postprocess chain.
+        m_rtvDescriptorHeap = std::make_unique<DescriptorHeap>(m_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, FrameCount + 1, false);
+
 
         // Describe and create a depth stencil view (DSV) descriptor heap.
         m_dsvDescriptorHeap = std::make_unique<DescriptorHeap>(m_device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
@@ -165,79 +175,65 @@ void D3D12DynamicIndexing::LoadAssets()
     ComPtr<ID3D12Resource> textureUploadHeap;
     ComPtr<ID3D12Resource> materialsUploadHeap;
 
-    // Create the root signature.
+    // Create configurable pipeline objects (RHI-agnostic front-end + DX12RHI back-end) and the pass chain.
     {
-        D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+        auto rhiDevice = std::make_shared<FDX12RHIDevice>(m_device.Get());
+        m_renderPipeline = std::make_unique<FRenderPipeline>(rhiDevice);
 
-        // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
-        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+        // Root signature configuration (keeps compatibility with existing shader bindings).
+        FRHIRootSignatureDesc rsDesc;
+        rsDesc.SrvCountSpace0 = 5000;
+        rsDesc.SrvCountSpace1 = 5000;
+        rsDesc.SamplerCount = 4080;
+        rsDesc.CbvCount = 1;
+        rsDesc.bAllowInputAssemblerInputLayout = true;
+        m_renderPipeline->RegisterRootSignature(L"CityRS", rsDesc);
 
-        if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-        {
-            featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-        }
+        static const FRHIVertexElement kCityVertexLayout[] = {
+            { "POSITION", 0, ERHIFormat::R32G32B32_FLOAT, 0, 0, false, 0 },
+            { "NORMAL",   0, ERHIFormat::R32G32B32_FLOAT, 0, 12, false, 0 },
+            { "TEXCOORD", 0, ERHIFormat::R32G32_FLOAT,    0, 24, false, 0 },
+            { "TANGENT",  0, ERHIFormat::R32G32B32_FLOAT, 0, 32, false, 0 },
+        };
+        const FRHIVertexLayout cityLayout = { kCityVertexLayout, _countof(kCityVertexLayout) };
 
-        CD3DX12_DESCRIPTOR_RANGE1 ranges[4];
-        // t0-t5000 texure
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5000, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);    // Diffuse texture + array of materials.
-        // space1(t0~t5000)
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5000, 0, 1, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);    // Diffuse texture + array of materials.
-        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 4080, 0,0, D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-        ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+        // Graphics PSO configuration (loaded from .cso so it is data-driven).
+        FRHIGraphicsPipelineDesc cityGp;
+        cityGp.RootSignatureName = L"CityRS";
+        cityGp.VSPath = GetAssetFullPath(L"Shaders\\shader_mesh_simple_vert.cso");
+        cityGp.PSPath = GetAssetFullPath(L"Shaders\\shader_mesh_dynamic_indexing_pixel.cso");
+        cityGp.VertexLayout = cityLayout;
+        cityGp.Rasterizer.CullMode = ERHICullMode::None;
+        cityGp.RTVFormat = ERHIFormat::R8G8B8A8_UNORM;
+        cityGp.DSVFormat = ERHIFormat::D32_FLOAT;
+        cityGp.SampleCount = 1;
+        m_renderPipeline->RegisterGraphicsPipeline(L"CityGP", cityGp);
 
-        CD3DX12_ROOT_PARAMETER1 rootParameters[4];
-        rootParameters[0].InitAsDescriptorTable(2, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[1].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[2].InitAsDescriptorTable(1, &ranges[3], D3D12_SHADER_VISIBILITY_VERTEX);
-        rootParameters[3].InitAsConstants(4, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+        // Post-process copy PSO (SceneColor -> BackBuffer).
+        FRHIGraphicsPipelineDesc postGp;
+        postGp.RootSignatureName = L"CityRS";
+        postGp.VSPath = GetAssetFullPath(L"Shaders\\shader_fullscreen_vert.cso");
+        postGp.PSPath = GetAssetFullPath(L"Shaders\\shader_postprocess_copy_pixel.cso");
+        postGp.VertexLayout = { nullptr, 0 };
+        postGp.Rasterizer.CullMode = ERHICullMode::None;
+        postGp.DepthStencil.bDepthEnable = false;
+        postGp.DepthStencil.bStencilEnable = false;
+        postGp.RTVFormat = ERHIFormat::R8G8B8A8_UNORM;
+        postGp.DSVFormat = ERHIFormat::Unknown;
+        postGp.SampleCount = 1;
+        m_renderPipeline->RegisterGraphicsPipeline(L"PostCopyGP", postGp);
 
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-        ComPtr<ID3DBlob> signature;
-        ComPtr<ID3DBlob> error;
-        ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
-        UINT SignatureBufferSize = signature->GetBufferSize();
-        ThrowIfFailed(m_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
-        NAME_D3D12_OBJECT(m_rootSignature);
+        // Default configurable chain:
+        //   SceneColor (geometry) -> PostProcess (fullscreen) -> Present.
+        const FRHICpuDescriptorHandle sceneColorRtv = DX12_ToRHICpu(m_rtvDescriptorHeap->GetCpuHandle(FrameCount));
+        m_renderPipeline->ClearPasses();
+        m_renderPipeline->AddPass(std::make_unique<FDX12BeginTextureRenderTargetPass>(L"SceneColor", sceneColorRtv));
+        m_renderPipeline->AddPass(std::make_unique<FDX12CityGeometryPass>(L"CityGP", L"CityRS"));
+        m_renderPipeline->AddPass(std::make_unique<FDX12PostProcessCopyPass>(L"PostCopyGP", L"CityRS", L"SceneColor"));
+        m_renderPipeline->AddPass(std::make_unique<FDX12EndBackbufferPass>());
     }
 
-    // Create the pipeline state, which includes loading shaders.
-    {
-        UINT8* pVertexShaderData;
-        UINT8* pPixelShaderData;
-        UINT vertexShaderDataLength;
-        UINT pixelShaderDataLength;
 
-        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"Shaders\\shader_mesh_simple_vert.cso").c_str(), &pVertexShaderData, &vertexShaderDataLength));
-        ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(L"Shaders\\shader_mesh_dynamic_indexing_pixel.cso").c_str(), &pPixelShaderData, &pixelShaderDataLength));
-
-
-        CD3DX12_RASTERIZER_DESC rasterizerStateDesc(D3D12_DEFAULT);
-        rasterizerStateDesc.CullMode = D3D12_CULL_MODE_NONE;
-
-        // Describe and create the graphics pipeline state object (PSO).
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.InputLayout = { SampleAssets::StandardVertexDescription, SampleAssets::StandardVertexDescriptionNumElements };
-        psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(pVertexShaderData, vertexShaderDataLength);
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pPixelShaderData, pixelShaderDataLength);
-        psoDesc.RasterizerState = rasterizerStateDesc;
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-        psoDesc.SampleDesc.Count = 1;
-
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
-        NAME_D3D12_OBJECT(m_pipelineState);
-
-        free(pVertexShaderData);
-        free(pPixelShaderData);
-    }
 
     ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
     NAME_D3D12_OBJECT(m_commandList);
@@ -254,7 +250,46 @@ void D3D12DynamicIndexing::LoadAssets()
         NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
     }
 
+    // Create offscreen SceneColor (RTV + SRV at index 0) for postprocess.
+    {
+        FRHITexture2DDesc sceneCfg;
+        sceneCfg.Width = m_width;
+        sceneCfg.Height = m_height;
+        sceneCfg.Format = ERHIFormat::R8G8B8A8_UNORM;
+        sceneCfg.bAllowRenderTarget = true;
+        sceneCfg.MipLevels = 1;
+        sceneCfg.SampleCount = 1;
+
+        FRHIClearColor clearColor;
+        clearColor.Color[0] = 0.0f;
+        clearColor.Color[1] = 0.2f;
+        clearColor.Color[2] = 0.4f;
+        clearColor.Color[3] = 1.0f;
+
+        m_renderPipeline->RegisterTexture2D(L"SceneColor", sceneCfg, ERHIResourceState::RenderTarget, &clearColor);
+        auto sceneColorTex = m_renderPipeline->GetTexture2D(L"SceneColor");
+        auto* dxSceneColor = dynamic_cast<FDX12RHITexture2D*>(sceneColorTex.get());
+        ID3D12Resource* sceneColor = dxSceneColor ? dxSceneColor->GetNative() : nullptr;
+        if (!sceneColor)
+        {
+            ThrowIfFailed(E_FAIL);
+        }
+
+        // RTV occupies the extra slot in the RTV heap.
+        m_device->CreateRenderTargetView(sceneColor, nullptr, m_rtvDescriptorHeap->GetCpuHandle(FrameCount));
+
+        // SRV is placed at CBV/SRV/UAV heap index 0 (t0), reserved for postprocess input.
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        m_device->CreateShaderResourceView(sceneColor, &srvDesc, m_cbvSrvDescriptorHeap->GetCpuHandle(0));
+    }
+
+
     // Read in mesh data for vertex/index buffers.
+
     UINT8* pMeshData;
     UINT meshDataLength;
     ThrowIfFailed(ReadDataFromFile(GetAssetFullPath(SampleAssets::DataFileName).c_str(), &pMeshData, &meshDataLength));
@@ -658,12 +693,6 @@ void D3D12DynamicIndexing::OnUpdate()
     m_pCurrentFrameResource = m_frameResources[m_currentFrameResourceIndex];
 
     // Make sure that this frame resource isn't still in use by the GPU.
-    // If it is, wait for it to complete.
-	/*if (m_pCurrentFrameResource->m_fenceValue != 0 && m_pCurrentFrameResource->m_fenceValue > lastCompletedFence)
-	{
-		ThrowIfFailed(m_fence->SetEventOnCompletion(m_pCurrentFrameResource->m_fenceValue, m_fenceEvent));
-		WaitForSingleObject(m_fenceEvent, INFINITE);
-	}*/
     m_commandQueue->WaitForFenceCPUBlocking(m_fenceValue);
 
     m_camera.Update(static_cast<float>(m_timer.GetElapsedSeconds()));
@@ -781,8 +810,19 @@ void D3D12DynamicIndexing::CreateFrameResources()
             }
         }
 
-        pFrameResource->InitBundle(m_device.Get(), m_pipelineState.Get(), i, m_numIndices, &m_indexBufferView,
-            &m_vertexBufferView, m_cbvSrvDescriptorHeap->GetHeap(), m_cbvSrvDescriptorSize, m_samplerDescriptorHeap->GetHeap(), m_rootSignature.Get());
+        auto cityPsoObj = m_renderPipeline->GetGraphicsPipeline(L"CityGP");
+        auto cityRootObj = m_renderPipeline->GetRootSignature(L"CityRS");
+        auto* cityPso = dynamic_cast<FDX12RHIPipelineState*>(cityPsoObj.get());
+        auto* cityRootSig = dynamic_cast<FDX12RHIRootSignature*>(cityRootObj.get());
+        if (!cityPso || !cityRootSig)
+        {
+            ThrowIfFailed(E_FAIL);
+        }
+
+        pFrameResource->InitBundle(m_device.Get(), cityPso->GetNative(), i, m_numIndices, &m_indexBufferView,
+            &m_vertexBufferView, m_cbvSrvDescriptorHeap->GetHeap(), m_cbvSrvDescriptorSize, m_samplerDescriptorHeap->GetHeap(), cityRootSig->GetNative());
+
+
 
         m_frameResources.push_back(pFrameResource);
     }
@@ -795,48 +835,54 @@ void D3D12DynamicIndexing::PopulateCommandList(FrameResource* pFrameResource)
     // fences to determine GPU execution progress.
     ThrowIfFailed(m_pCurrentFrameResource->m_commandAllocator->Reset());
 
-    // However, when ExecuteCommandList() is called on a particular command
-    // list, that command list can then be reset at any time and must be before
-    // re-recording.
-    ThrowIfFailed(m_commandList->Reset(m_pCurrentFrameResource->m_commandAllocator.Get(), m_pipelineState.Get()));
+    // Reset main command list.
+    auto cityPsoObj = m_renderPipeline->GetGraphicsPipeline(L"CityGP");
+    auto* cityPso = dynamic_cast<FDX12RHIPipelineState*>(cityPsoObj.get());
+    ThrowIfFailed(m_commandList->Reset(m_pCurrentFrameResource->m_commandAllocator.Get(), cityPso ? cityPso->GetNative() : nullptr));
 
-    // Set necessary state.
-    m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    // Wrap native DX12 objects into RHI-agnostic views and let the pipeline record passes.
+    FDX12RHICommandList rhiCmd(m_commandList.Get());
+    FDX12RHIDescriptorHeapView cbvHeap(m_cbvSrvDescriptorHeap->GetHeap());
+    FDX12RHIDescriptorHeapView samplerHeap(m_samplerDescriptorHeap->GetHeap());
 
-    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvSrvDescriptorHeap->GetHeap(), m_samplerDescriptorHeap->GetHeap() };
-    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+    FRenderPipeline::FRenderContext ctx;
+    ctx.Cmd = &rhiCmd;
 
-    m_commandList->RSSetViewports(1, &m_viewport);
-    m_commandList->RSSetScissorRects(1, &m_scissorRect);
+    ctx.BackBuffer = std::make_shared<FDX12RHITexture2D>(m_renderTargets[m_frameIndex].Get());
+    ctx.BackBufferRTV = DX12_ToRHICpu(m_rtvDescriptorHeap->GetCpuHandle(m_frameIndex));
 
-    // Indicate that the back buffer will be used as a render target.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+    ctx.DepthStencil = std::make_shared<FDX12RHITexture2D>(m_depthStencil.Get());
+    ctx.DSV = DX12_ToRHICpu(m_dsvDescriptorHeap->GetCpuHandle(0));
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvDescriptorHeap->GetCpuHandle(m_frameIndex));
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvDescriptorHeap->GetCpuHandle(0));
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+    ctx.Viewport.TopLeftX = m_viewport.TopLeftX;
+    ctx.Viewport.TopLeftY = m_viewport.TopLeftY;
+    ctx.Viewport.Width = m_viewport.Width;
+    ctx.Viewport.Height = m_viewport.Height;
+    ctx.Viewport.MinDepth = m_viewport.MinDepth;
+    ctx.Viewport.MaxDepth = m_viewport.MaxDepth;
 
-    // Record commands.
-    const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_commandList->ClearDepthStencilView(m_dsvDescriptorHeap->GetCpuHandle(0), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    ctx.Scissor.left = m_scissorRect.left;
+    ctx.Scissor.top = m_scissorRect.top;
+    ctx.Scissor.right = m_scissorRect.right;
+    ctx.Scissor.bottom = m_scissorRect.bottom;
 
-    PIXBeginEvent(m_commandList.Get(), 0, L"Draw cities");
-    if (UseBundles)
-    {
-        // Execute the prebuilt bundle.
-        m_commandList->ExecuteBundle(pFrameResource->m_GraphicCommandList.Get());
-    }
-    else
-    {
-        // Populate a new command list.
-        pFrameResource->PopulateCommandList(m_commandList.Get(), m_currentFrameResourceIndex, m_numIndices, &m_indexBufferView,
-            &m_vertexBufferView, m_cbvSrvDescriptorHeap->GetHeap(), m_cbvSrvDescriptorSize, m_samplerDescriptorHeap->GetHeap(), m_rootSignature.Get());
-    }
-    PIXEndEvent(m_commandList.Get());
+    ctx.CbvSrvUavHeap = &cbvHeap;
+    ctx.SamplerHeap = &samplerHeap;
 
-    // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+    FDX12CityGeometryPass::FInputs cityInputs;
+    cityInputs.Frame = pFrameResource;
+    cityInputs.FrameResourceIndex = m_currentFrameResourceIndex;
+    cityInputs.NumIndices = m_numIndices;
+    cityInputs.IBV = &m_indexBufferView;
+    cityInputs.VBV = &m_vertexBufferView;
+    cityInputs.CbvSrvUavHeap = m_cbvSrvDescriptorHeap->GetHeap();
+    cityInputs.SamplerHeap = m_samplerDescriptorHeap->GetHeap();
+    cityInputs.CbvSrvUavDescriptorSize = m_cbvSrvDescriptorSize;
+    cityInputs.bUseBundles = UseBundles;
 
-    //ThrowIfFailed(m_commandList->Close());
+    ctx.UserData = &cityInputs;
+
+    m_renderPipeline->Execute(ctx);
+
+
 }

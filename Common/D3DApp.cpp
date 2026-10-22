@@ -69,6 +69,8 @@ int D3DApp::Run()
         {
             mTimer.Tick();
             CalculateFrameStats();
+            // 相机先于子类 Update 推进，子类本帧读到的就是最新视图。
+            CameraController.Tick(mTimer.DeltaTime());
             Update(mTimer);
             Draw(mTimer);
         }
@@ -145,6 +147,7 @@ bool D3DApp::InitMainWindow()
     {
         return false;
     }
+    CameraController.SetWindow(mMainWnd);
 
     ShowWindow(mMainWnd, SW_SHOW);
     UpdateWindow(mMainWnd);
@@ -370,6 +373,7 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         {
             mAppPaused = true;
             mTimer.Stop();
+            CameraController.ResetInput();
             OnPause();
         }
         else
@@ -419,17 +423,25 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         OnResize();
         return 0;
 
-    // 键鼠输入转发到子类虚函数（拖拽期间捕获鼠标，保证窗口外释放也能收到 UP）。
+    // 键鼠输入：先交给相机控制器，再转发到子类虚函数。
+    // 拖拽期间捕获鼠标，保证窗口外释放也能收到 UP；多键拖拽时等全部按键松开才释放捕获。
     case WM_KEYDOWN:
+        CameraController.OnKeyDown(wParam);
         OnKeyDown(wParam);
         return 0;
     case WM_KEYUP:
+        CameraController.OnKeyUp(wParam);
         OnKeyUp(wParam);
         return 0;
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
-        SetCapture(hwnd);
+        // 已持有捕获（多键拖拽）时不重复 SetCapture，避免给自己发 WM_CAPTURECHANGED。
+        if (GetCapture() != hwnd)
+        {
+            SetCapture(hwnd);
+        }
+        CameraController.OnMouseButtonChanged(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         OnMouseDown(wParam,
             GET_X_LPARAM(lParam),
             GET_Y_LPARAM(lParam));
@@ -437,12 +449,38 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_LBUTTONUP:
     case WM_MBUTTONUP:
     case WM_RBUTTONUP:
-        ReleaseCapture();
+    {
+        const bool bAnyButtonHeld = (wParam & (MK_LBUTTON | MK_MBUTTON | MK_RBUTTON)) != 0;
+        CameraController.OnMouseButtonChanged(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+        if (!bAnyButtonHeld)
+        {
+            ReleaseCapture();
+        }
         OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         return 0;
+    }
     case WM_MOUSEMOVE:
+        CameraController.OnMouseMove(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         return 0;
+    case WM_MOUSEWHEEL:
+        CameraController.OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam));
+        OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam));
+        return 0;
+    // 捕获被其他窗口 / 系统夺走（Alt+Tab、弹窗等）：结束拖拽，恢复光标。
+    case WM_CAPTURECHANGED:
+        if (reinterpret_cast<HWND>(lParam) != hwnd)
+        {
+            CameraController.CancelDrag();
+        }
+        return 0;
+    // 单独按下 / 松开 Alt 会进入窗口菜单模式并吞掉随后的鼠标输入，Alt+拖拽环绕依赖屏蔽它。
+    case WM_SYSCOMMAND:
+        if ((wParam & 0xFFF0) == SC_KEYMENU)
+        {
+            return 0;
+        }
+        break;
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
