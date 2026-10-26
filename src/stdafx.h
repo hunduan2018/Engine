@@ -29,7 +29,7 @@
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
 #include "../Common/MathTypes.h"
-#include "../Common/d3dx12.h"
+#include "d3dx12.h"   // Agility SDK helpers: ThirdParty/D3D12Agility/include/d3dx12
 
 #include <pix3.h>
 

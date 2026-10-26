@@ -86,7 +86,6 @@ set(MENGINE_HEADERS
   ${CMAKE_SOURCE_DIR}/src/D3D12DynamicIndexing.h
   ${CMAKE_SOURCE_DIR}/Common/D3DApp.h
   ${CMAKE_SOURCE_DIR}/Common/d3dUtil.h
-  ${CMAKE_SOURCE_DIR}/Common/d3dx12.h
   ${CMAKE_SOURCE_DIR}/src/DXSample.h
   ${CMAKE_SOURCE_DIR}/src/DXSampleHelper.h
   ${CMAKE_SOURCE_DIR}/Common/Mesh/FStaticMesh.h
@@ -227,7 +226,8 @@ set(MENGINE_AGILITY_ROOT "${CMAKE_SOURCE_DIR}/ThirdParty/D3D12Agility")
 if(EXISTS "${MENGINE_AGILITY_ROOT}/include/d3d12.h" AND EXISTS "${MENGINE_AGILITY_ROOT}/bin/x64/D3D12Core.dll")
   # Include order matters: Agility headers must come before the Windows SDK ones.
   # target_include_directories places these before the default SDK includes.
-  target_include_directories(MEngine PRIVATE "${MENGINE_AGILITY_ROOT}/include")
+  # include/d3dx12 holds the d3dx12.h helpers matching this SDK version (#include "d3dx12.h").
+  target_include_directories(MEngine PRIVATE "${MENGINE_AGILITY_ROOT}/include" "${MENGINE_AGILITY_ROOT}/include/d3dx12")
 
   # Ship the Agility runtime in a "D3D12" subfolder next to the exe (matches D3D12SDKPath export).
   add_custom_command(TARGET MEngine POST_BUILD
