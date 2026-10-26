@@ -207,6 +207,7 @@ if(MYENGINE_USE_WINPIX)
     target_include_directories(MEngine PRIVATE "${_winpix_root}/Include/WinPixEventRuntime")
     target_link_directories(MEngine PRIVATE "${_winpix_root}/bin")
     target_link_libraries(MEngine PRIVATE WinPixEventRuntime)
+    target_compile_definitions(MEngine PRIVATE MYENGINE_WITH_WINPIX=1)
 
     # Copy DLL if it exists (some packages ship only .lib in source control)
     if(EXISTS "${_winpix_root}/bin/WinPixEventRuntime.dll")
