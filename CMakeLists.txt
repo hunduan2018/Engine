@@ -86,7 +86,6 @@ set(MENGINE_HEADERS
   ${CMAKE_SOURCE_DIR}/src/D3D12DynamicIndexing.h
   ${CMAKE_SOURCE_DIR}/Common/D3DApp.h
   ${CMAKE_SOURCE_DIR}/Common/d3dUtil.h
-  ${CMAKE_SOURCE_DIR}/Common/d3dx12.h
   ${CMAKE_SOURCE_DIR}/src/DXSample.h
   ${CMAKE_SOURCE_DIR}/src/DXSampleHelper.h
   ${CMAKE_SOURCE_DIR}/Common/Mesh/FStaticMesh.h
@@ -208,6 +207,7 @@ if(MYENGINE_USE_WINPIX)
     target_include_directories(MEngine PRIVATE "${_winpix_root}/Include/WinPixEventRuntime")
     target_link_directories(MEngine PRIVATE "${_winpix_root}/bin")
     target_link_libraries(MEngine PRIVATE WinPixEventRuntime)
+    target_compile_definitions(MEngine PRIVATE MYENGINE_WITH_WINPIX=1)
 
     # Copy DLL if it exists (some packages ship only .lib in source control)
     if(EXISTS "${_winpix_root}/bin/WinPixEventRuntime.dll")
@@ -227,7 +227,8 @@ set(MENGINE_AGILITY_ROOT "${CMAKE_SOURCE_DIR}/ThirdParty/D3D12Agility")
 if(EXISTS "${MENGINE_AGILITY_ROOT}/include/d3d12.h" AND EXISTS "${MENGINE_AGILITY_ROOT}/bin/x64/D3D12Core.dll")
   # Include order matters: Agility headers must come before the Windows SDK ones.
   # target_include_directories places these before the default SDK includes.
-  target_include_directories(MEngine PRIVATE "${MENGINE_AGILITY_ROOT}/include")
+  # include/d3dx12 holds the d3dx12.h helpers matching this SDK version (#include "d3dx12.h").
+  target_include_directories(MEngine PRIVATE "${MENGINE_AGILITY_ROOT}/include" "${MENGINE_AGILITY_ROOT}/include/d3dx12")
 
   # Ship the Agility runtime in a "D3D12" subfolder next to the exe (matches D3D12SDKPath export).
   add_custom_command(TARGET MEngine POST_BUILD

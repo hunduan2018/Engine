@@ -29,9 +29,16 @@
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
 #include "../Common/MathTypes.h"
-#include "../Common/d3dx12.h"
+#include "d3dx12.h"   // Agility SDK helpers: ThirdParty/D3D12Agility/include/d3dx12
 
+// WinPixEventRuntime is optional (its NuGet package under src/packages is not in the repo).
+// Without it, PIX events compile to no-ops so a fresh clone still builds.
+#if MYENGINE_WITH_WINPIX
 #include <pix3.h>
+#else
+#define PIXBeginEvent(...) ((void)0)
+#define PIXEndEvent(...) ((void)0)
+#endif
 
 #include <string>
 #include <vector>
