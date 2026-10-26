@@ -2,6 +2,28 @@
 
 C++ / D3D12（Agility SDK）渲染引擎，CMake 构建，目标平台 Windows x64。
 
+## 工程结构与构建
+
+- 构建：`cmake -S . -B build`（Visual Studio 17 2022 生成器），`cmake --build build --config Debug`；可执行文件输出到 `bin/x64/<Config>/`
+- 目录职责：
+  - `src/`：应用入口（`Main.cpp` 中的 TestApp）与旧 DXSample 示例代码
+  - `Common/`：跨应用共享基础设施——`D3DApp` 宿主框架、`FCamera` 与 UE5 风格视口漫游 `FViewportCameraController`、队列 / 描述符堆管理、数学工具
+  - `Renderer/`：Mesh Draw Command 渲染架构，入口 `FRenderer`
+  - `RHI/`：RHI 抽象层（实验中）
+  - `Shaders/`：HLSL 源码，构建后由 dxc 编译到输出目录
+  - `cmake/`：第三方库接入脚本（如 `ThirdPartyAssimp.cmake`）
+  - `ThirdParty/`：第三方依赖
+  - `Docs/`：设计说明与技术问答整理
+- 新应用继承 `D3DApp` 即自带相机漫游：直接使用基类的 `Camera` 取视图矩阵，手感参数见 `FViewportCameraSettings`，不需要时 `CameraController.SetEnabled(false)`
+- `CMakeLists.txt` 中着色器编译段的中文注释是 GBK 编码：编辑时保持原编码（按字节替换），不要整文件按 UTF-8 重写
+
+## 第三方依赖
+
+- 原则：有源码的依赖一律从源码编译（便于调试时单步进入），不引入预编译二进制
+- Assimp：源码直接入库于 `ThirdParty/assimp`（上游 6.0.2，commit `2e0dfde`），经 `cmake/ThirdPartyAssimp.cmake` 编为静态库；只编需要的 importer（缓存变量 `MENGINE_ASSIMP_IMPORTERS`，默认 `FBX`）。升级时整体替换该目录并同步更新此处版本号
+- 例外（仅二进制发布）：D3D12 Agility SDK（`ThirdParty/D3D12Agility`）、WinPixEventRuntime（可选）、dxc.exe（着色器编译工具）
+- `d3dx12.h` 辅助头使用 Agility SDK 自带、与 SDK 版本匹配的 `ThirdParty/D3D12Agility/include/d3dx12/`，工程内不另放副本
+
 ## 编码规则
 
 以下 4 条规则适用于本项目所有新增与修改的代码：

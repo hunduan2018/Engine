@@ -1,12 +1,19 @@
 # Visual Studio
 .vs/
 /bin/
+src/bin/
 obj/
 /packages/
 *.user
 
 # CMake
 build/
+
+# Assimp test models (~210MB): tests are disabled (ASSIMP_BUILD_TESTS OFF), not needed to build
+ThirdParty/assimp/test/
+
+# Claude Code: personal local settings (shared settings belong in .claude/settings.json)
+.claude/settings.local.json
 
 # Local NuGet packages (optional WinPix dependency)
 src/packages/
