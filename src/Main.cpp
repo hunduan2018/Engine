@@ -249,9 +249,8 @@ public:
         Renderer->RegisterMaterial(GroundSolidMaterial.get(), staticMeshFactory);
         Renderer->RegisterMaterial(GroundWireMaterial.get(), staticMeshFactory);
 
-        FStaticMesh groundStaticMesh = FGridMeshBuilder::BuildTessellatedPlane(220.0f, 11);
         GroundMesh = std::make_unique<FMeshRenderData>(
-            CreateMeshRenderData(device, commandList, groundStaticMesh, staticMeshFactory, uploadContext));
+            CreateMeshRenderData(device, commandList, GroundStaticMesh, staticMeshFactory, uploadContext));
 
         // ---- 场景：地面 + 4x4 城市实例网格（同网格同材质 -> 实例合并验证）----
         Scene.AddPrimitive(GroundMesh.get(), GroundSolidMaterial.get(), MathHelper::Identity4x4());
@@ -280,6 +279,9 @@ public:
                 }
             }
         }
+
+        // ---- 场景：Box
+
 
         // 初始化期上传：执行 + CPU 等待，此后默认堆资源可安全使用。
         Renderer->FlushInitUploads();

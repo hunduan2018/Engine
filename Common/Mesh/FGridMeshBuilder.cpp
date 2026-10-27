@@ -1,4 +1,4 @@
-// FGridMeshBuilder.cpp
+﻿// FGridMeshBuilder.cpp
 
 #include "FGridMeshBuilder.h"
 
@@ -59,4 +59,84 @@ FStaticMesh FGridMeshBuilder::BuildTessellatedPlane(float size, uint32_t divisio
     mesh.MaterialNames.push_back("Ground");
     mesh.RecomputeBounds();
     return mesh;
+}
+
+FStaticMesh FBoxMeshBuilder::BuildBox(float size)
+{
+    FStaticMesh mesh;
+    const float halfSize = size * 0.5f;
+    // 纹理按世界单位平铺（每 20 单位重复一次）。
+    const float uvScale = 1.0f / 20.0f;
+    mesh.Vertices.reserve(24);
+    mesh.Indices.reserve(36);
+    const auto appendVertex = [&mesh, uvScale](float x, float y, float z, float nx, float ny, float nz, float u, float v) -> uint32_t
+    {
+        FStaticMeshVertex vertex = {};
+        vertex.Position = FVector3(x, y, z);
+        vertex.Normal = FVector3(nx, ny, nz);
+        vertex.UV0 = FVector2(u * uvScale, v * uvScale);
+        vertex.Tangent = FVector3(1.0f, 0.0f, 0.0f); // 简化处理，实际应根据法线计算切线
+        const uint32_t index = static_cast<uint32_t>(mesh.Vertices.size());
+        mesh.Vertices.push_back(vertex);
+        return index;
+    };
+    // 定义立方体的 6 个面，每个面由两个三角形组成
+    // 前面
+    mesh.Indices.push_back(appendVertex(-halfSize, -halfSize, -halfSize, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, -halfSize, -halfSize, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, halfSize, -halfSize, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, -halfSize, -halfSize, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, halfSize, -halfSize, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f));
+	mesh.Indices.push_back(appendVertex(-halfSize, halfSize, -halfSize, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f));
+
+	// 后面
+    mesh.Indices.push_back(appendVertex(-halfSize, -halfSize, halfSize, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, halfSize, halfSize, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, -halfSize, halfSize, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, -halfSize, halfSize, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, halfSize, halfSize, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f));
+	mesh.Indices.push_back(appendVertex(halfSize, halfSize, halfSize, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f));
+
+	// 左面
+    mesh.Indices.push_back(appendVertex(-halfSize, -halfSize, halfSize, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, -halfSize, -halfSize, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, halfSize, halfSize, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, -halfSize, -halfSize, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, halfSize, -halfSize, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f));
+	mesh.Indices.push_back(appendVertex(-halfSize, halfSize, halfSize, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f));
+
+	// 右面
+    mesh.Indices.push_back(appendVertex(halfSize, -halfSize, -halfSize, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, -halfSize, halfSize, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, halfSize, -halfSize, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, -halfSize, halfSize, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f));
+	mesh.Indices.push_back(appendVertex(halfSize, halfSize, halfSize, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f));
+	mesh.Indices.push_back(appendVertex(halfSize, halfSize, -halfSize, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f));
+
+	// 上面
+    mesh.Indices.push_back(appendVertex(-halfSize, halfSize, -halfSize, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, halfSize, -halfSize, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, halfSize, halfSize, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, halfSize, -halfSize, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f));
+	mesh.Indices.push_back(appendVertex(halfSize, halfSize, halfSize, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f));
+	mesh.Indices.push_back(appendVertex(-halfSize, halfSize, halfSize, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f));
+
+	// 下面
+    mesh.Indices.push_back(appendVertex(-halfSize, -halfSize, halfSize, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(halfSize, -halfSize, halfSize, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f));
+    mesh.Indices.push_back(appendVertex(-halfSize, -halfSize, -halfSize, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f));
+	mesh.Indices.push_back(appendVertex(halfSize, -halfSize, halfSize, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f));
+	mesh.Indices.push_back(appendVertex(halfSize, -halfSize, -halfSize, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f));
+	mesh.Indices.push_back(appendVertex(-halfSize, -halfSize, -halfSize, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f));
+
+	FStaticMeshSection section = {};
+    section.Name = "Box";
+    section.MaterialIndex = 0;
+    section.IndexStart = 0;
+    section.IndexCount = static_cast<uint32_t>(mesh.Indices.size());
+    section.VertexBase = 0;
+    mesh.Sections.push_back(section);
+    mesh.MaterialNames.push_back("Box");   // Box 构建器（原误写 "Ground"）
+    mesh.RecomputeBounds();
+	return mesh;
 }
