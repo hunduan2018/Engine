@@ -119,6 +119,7 @@ public:
          view.TimeSeconds = ElapsedTime;
          view.ViewportWidth = static_cast<float>(mClientWidth);
          view.ViewportHeight = static_cast<float>(mClientHeight);
+         view.FillMode = ViewFillMode;
 
          Renderer->UpdateView(view);
          Renderer->RenderScene(Scene, mCommandList.Get());
@@ -143,21 +144,18 @@ public:
          switch (key)
          {
          case 'F':
-             // 线框切换：预注册的两个材质（同一着色器组合、不同光栅化状态）
-             // 命中 PSO 缓存的不同条目，绘制路径零改动。
-             bWireframe = !bWireframe;
-             Scene.Primitives[GroundPrimitiveIndex].Material =
-                 bWireframe ? GroundWireMaterial.get() : GroundSolidMaterial.get();
+             // 只切换 View Mode；渲染时由 Mesh Pass Processor 按 view.FillMode 选预建的 PSO，作用于全部物体。
+             ViewFillMode = (ViewFillMode == EViewFillMode::Wireframe)
+                 ? EViewFillMode::Solid
+                 : EViewFillMode::Wireframe;
              break;
          case '+':
          case '=':
-             GroundSolidMaterial->TessellationFactor = MathHelper::Min(GroundSolidMaterial->TessellationFactor + 1.0f, 16.0f);
-             GroundWireMaterial->TessellationFactor = GroundSolidMaterial->TessellationFactor;
+             GroundMaterial->TessellationFactor = MathHelper::Min(GroundMaterial->TessellationFactor + 1.0f, 16.0f);
              break;
          case '-':
          case '_':
-             GroundSolidMaterial->TessellationFactor = MathHelper::Max(GroundSolidMaterial->TessellationFactor - 1.0f, 1.0f);
-             GroundWireMaterial->TessellationFactor = GroundSolidMaterial->TessellationFactor;
+             GroundMaterial->TessellationFactor = MathHelper::Max(GroundMaterial->TessellationFactor - 1.0f, 1.0f);
              break;
          default:
              break;
@@ -228,33 +226,26 @@ public:
         CityMaterial->Rasterizer = ERasterizerMode::SolidCullNone;
         Renderer->RegisterMaterial(CityMaterial.get(), staticMeshFactory);
 
-        // ---- 地面（VS+HS+DS+PS 曲面细分；实体/线框两份材质共享着色器组合）----
+        // ---- 地面（VS+HS+DS+PS Tessellation；Wireframe 由全局 View Mode 控制，不另建材质）----
         GroundTexture = std::make_unique<FTextureResource>(
             CreateCheckerTexture(device, commandList, 256, 256, 32, bindless, uploadContext));
 
-        GroundSolidMaterial = std::make_unique<FMaterial>();
-        GroundWireMaterial = std::make_unique<FMaterial>();
-        for (FMaterial* material : { GroundSolidMaterial.get(), GroundWireMaterial.get() })
-        {
-            material->VertexShader = shaderManager.LoadShader("shader_tess_vert");
-            material->HullShader = shaderManager.LoadShader("shader_tess_hull");
-            material->DomainShader = shaderManager.LoadShader("shader_tess_domain");
-            material->PixelShader = shaderManager.LoadShader("shader_basepass_pixel");
-            material->Pipeline = EMaterialShaderPipeline::Tessellated;
-            material->DiffuseSrvArrayIndex = GroundTexture->SrvArrayIndex;
-            material->TessellationFactor = 4.0f;
-        }
-        GroundSolidMaterial->Rasterizer = ERasterizerMode::SolidCullNone;
-        GroundWireMaterial->Rasterizer = ERasterizerMode::Wireframe;
-        Renderer->RegisterMaterial(GroundSolidMaterial.get(), staticMeshFactory);
-        Renderer->RegisterMaterial(GroundWireMaterial.get(), staticMeshFactory);
+        GroundMaterial = std::make_unique<FMaterial>();
+        GroundMaterial->VertexShader = shaderManager.LoadShader("shader_tess_vert");
+        GroundMaterial->HullShader = shaderManager.LoadShader("shader_tess_hull");
+        GroundMaterial->DomainShader = shaderManager.LoadShader("shader_tess_domain");
+        GroundMaterial->PixelShader = shaderManager.LoadShader("shader_basepass_pixel");
+        GroundMaterial->Pipeline = EMaterialShaderPipeline::Tessellated;
+        GroundMaterial->DiffuseSrvArrayIndex = GroundTexture->SrvArrayIndex;
+        GroundMaterial->TessellationFactor = 4.0f;
+        GroundMaterial->Rasterizer = ERasterizerMode::SolidCullNone;
+        Renderer->RegisterMaterial(GroundMaterial.get(), staticMeshFactory);
 
         GroundMesh = std::make_unique<FMeshRenderData>(
             CreateMeshRenderData(device, commandList, GroundStaticMesh, staticMeshFactory, uploadContext));
 
         // ---- 场景：地面 + 4x4 城市实例网格（同网格同材质 -> 实例合并验证）----
-        Scene.AddPrimitive(GroundMesh.get(), GroundSolidMaterial.get(), MathHelper::Identity4x4());
-        GroundPrimitiveIndex = static_cast<uint32_t>(Scene.Primitives.size() - 1);
+        Scene.AddPrimitive(GroundMesh.get(), GroundMaterial.get(), MathHelper::Identity4x4());
 
         {
             using namespace DirectX;
@@ -313,13 +304,11 @@ public:
 
     std::unique_ptr<FMeshRenderData> GroundMesh;
     std::unique_ptr<FTextureResource> GroundTexture;
-    std::unique_ptr<FMaterial> GroundSolidMaterial;
-    std::unique_ptr<FMaterial> GroundWireMaterial;
-    uint32_t GroundPrimitiveIndex = 0;
+    std::unique_ptr<FMaterial> GroundMaterial;
 
     float ElapsedTime = 0.0f;
     uint32_t FrameCounter = 0;
-    bool bWireframe = false;
+    EViewFillMode ViewFillMode = EViewFillMode::Solid;    // 全局 View Mode（F 键切换）
 };
 
 _Use_decl_annotations_

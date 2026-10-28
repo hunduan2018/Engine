@@ -71,6 +71,15 @@ enum class ERasterizerMode : uint8_t
     Wireframe,
 };
 
+// View Fill Mode（全局调试开关，属于 View 而非 Material）：Solid 时用材质自身的 Rasterizer State，
+// Wireframe 时覆盖为线框。材质注册时为每种模式预建 PSO，切换不在逐帧路径上创建 PSO。
+enum class EViewFillMode : uint8_t
+{
+    Solid,
+    Wireframe,
+    Count,
+};
+
 enum class EDepthMode : uint8_t
 {
     ReadWrite,

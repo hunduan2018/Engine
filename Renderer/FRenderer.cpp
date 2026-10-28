@@ -69,21 +69,30 @@ void FRenderer::RegisterMaterial(FMaterial* material, const FVertexFactory* vert
     // v1：所有通道用同一状态组合（不透明、深度按通道决定）。
     // 后续通道需要不同状态时，在此按 Pass 组装各自的 desc。
     // 布局来自工厂；拓扑由材质管线决定（曲面细分只影响 TopologyType，不影响布局）。
-    FGraphicsPipelineStateDesc desc(
-        material->VertexShader, material->PixelShader, vertexFactory->Handle,
-        material->HullShader, material->DomainShader,
-        EBlendMode::Opaque, material->Rasterizer, EDepthMode::ReadWrite,
-        material->IsTessellated()
-            ? D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH
-            : D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+    // 每种 View Fill Mode 各预建一个 PSO：View Mode 切换只换句柄，不在逐帧路径上建 PSO。
+    for (size_t FillModeIndex = 0; FillModeIndex < static_cast<size_t>(EViewFillMode::Count); ++FillModeIndex)
+    {
+        const EViewFillMode FillMode = static_cast<EViewFillMode>(FillModeIndex);
+        const ERasterizerMode Rasterizer = FillMode == EViewFillMode::Wireframe
+            ? ERasterizerMode::Wireframe
+            : material->Rasterizer;
 
-    // 输出布局由渲染器填充（交换链 RTV/DSV 格式）。
-    desc.NumRenderTargets = 1;
-    desc.RTVFormats[0] = RtvFormat;
-    desc.DSVFormat = DsvFormat;
-    desc.SampleCount = 1;
+        FGraphicsPipelineStateDesc Desc(
+            material->VertexShader, material->PixelShader, vertexFactory->Handle,
+            material->HullShader, material->DomainShader,
+            EBlendMode::Opaque, Rasterizer, EDepthMode::ReadWrite,
+            material->IsTessellated()
+                ? D3D12_PRIMITIVE_TOPOLOGY_TYPE_PATCH
+                : D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
 
-    material->PipelineStates[static_cast<size_t>(EMeshPass::BasePass)] = PsoCache.GetOrCreate(desc, vertexFactory);
+        // 输出布局由渲染器填充（交换链 RTV/DSV 格式）。
+        Desc.NumRenderTargets = 1;
+        Desc.RTVFormats[0] = RtvFormat;
+        Desc.DSVFormat = DsvFormat;
+        Desc.SampleCount = 1;
+
+        material->PipelineStates[static_cast<size_t>(EMeshPass::BasePass)][FillModeIndex] = PsoCache.GetOrCreate(Desc, vertexFactory);
+    }
     material->SortId = NextMaterialSortId++;
 }
 

@@ -7,7 +7,9 @@
 #include "RendererTypes.h"
 #include "MathTypes.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 
 // 写入常量上传环、供 b1 使用的 GPU 镜像。字段须与 shader_common.hlsli 的 FMaterialConstants 一致。
 struct FMaterialConstants
@@ -22,6 +24,12 @@ struct FMaterialConstants
 class FMaterial
 {
 public:
+    // 句柄 0 是合法 PSO，未注册的槽必须显式置为 Invalid，否则漏建 PSO 无法被断言拦截。
+    FMaterial()
+    {
+        std::fill_n(&PipelineStates[0][0], std::size(PipelineStates) * std::size(PipelineStates[0]), InvalidPSOHandle);
+    }
+
     FShaderHandle VertexShader = InvalidShaderHandle;
     FShaderHandle PixelShader = InvalidShaderHandle;
     FShaderHandle HullShader = InvalidShaderHandle;     // Invalid => 非曲面细分
@@ -34,8 +42,8 @@ public:
     FVector4 BaseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     float TessellationFactor = 4.0f;                    // 由 ConstantHS 读取
 
-    // 注册时由 FRenderer 填充：每 Pass 预解析的 PSO 句柄 + 排序用材质 ID。
-    FPSOHandle PipelineStates[static_cast<size_t>(EMeshPass::Count)] = { InvalidPSOHandle };
+    // 注册时由 FRenderer 填充：每 Mesh Pass × View Fill Mode 预解析的 PSO 句柄 + 排序用材质 ID。
+    FPSOHandle PipelineStates[static_cast<size_t>(EMeshPass::Count)][static_cast<size_t>(EViewFillMode::Count)];
     uint16_t SortId = 0;
 
     bool IsTessellated() const { return Pipeline == EMaterialShaderPipeline::Tessellated; }
