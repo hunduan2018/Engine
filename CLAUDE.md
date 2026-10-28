@@ -31,7 +31,9 @@ C++ / D3D12（Agility SDK）渲染引擎，CMake 构建，目标平台 Windows x
 ### 1. 编码规范统一 — 采用 UE（Unreal Engine）编码规范
 
 - 类型命名 PascalCase，并带 UE 类型前缀：`F`（普通类/结构）、`U`（运行时托管对象）、`A`（Actor 类）、`I`（接口）、`S`（独立结构）、`E`（枚举）、`T`（模板）
-- 函数、成员、局部变量均用 PascalCase；bool 变量以 `b` 开头（如 `bIsReady`）
+- 本项目扩展前缀 `M`：由 `FAssetManager` 托管生命周期的资产对象（如 `MAsset`、`MStaticMesh`、`MTexture2D`），与 UE 的 `U`（UObject，带 GC / 反射）区分；管理器、加载器等普通类仍用 `F` / `I`
+- 函数、成员、局部变量、函数参数、循环变量、lambda 参数**一律** PascalCase：写 `BaseProcessor`、`BasePassList`、`FillModeIndex`，不写 `baseProcessor`、`basePassList`、`fillModeIndex`；bool 变量以 `b` 开头（如 `bIsReady`）
+- 函数参数与成员同名时，输入参数加 `In` 前缀（如 `InDevice`），输出参数加 `Out` 前缀（如 `OutStreams`）
 - 不使用 `m_`、`s_`、匈牙利等前缀；成员与局部变量靠命名区分
 - 一类型一文件，文件名与主类型同名（如 `FCamera.h` / `FCamera.cpp`）
 - 头文件用 `#pragma once`；缩进沿用现有 4 空格
