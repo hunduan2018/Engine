@@ -20,7 +20,9 @@ void FMeshPassProcessor::BuildMeshDrawCommand(const FMeshBatch& batch)
     APP_CHECK(batch.SectionIndex < batch.Mesh->Sections.size());
 
     const FMaterial& material = *batch.Material;
-    const FPSOHandle psoHandle = material.PipelineStates[static_cast<size_t>(PassId)];
+    // View Mode（如全局 Wireframe）在此生效：材质不感知视图状态，只提供各模式的预建 PSO。
+    const FPSOHandle psoHandle =
+        material.PipelineStates[static_cast<size_t>(PassId)][static_cast<size_t>(Context.View.FillMode)];
     APP_CHECK_MSG(psoHandle != InvalidPSOHandle,
         "Material was not registered for this pass; PSOs are created at registration time only");
 

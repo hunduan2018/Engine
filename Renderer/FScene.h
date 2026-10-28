@@ -8,6 +8,7 @@
 #include "FMeshBatch.h"
 #include "MathHelper.h"
 #include "MathTypes.h"
+#include "RendererTypes.h"
 
 #include <vector>
 
@@ -20,6 +21,7 @@ struct FSceneView
     float TimeSeconds = 0.0f;
     float ViewportWidth = 0.0f;
     float ViewportHeight = 0.0f;
+    EViewFillMode FillMode = EViewFillMode::Solid;          // View Mode：渲染时由 Mesh Pass Processor 据此选 PSO
 };
 
 struct FScenePrimitive
