@@ -1,6 +1,6 @@
 // FUploadConstantRing.h
 // 每帧槽一块的常量上传环：持久映射的 UPLOAD 缓冲，BeginFrame 重置该槽偏移。
-// 生命周期约定：调用方（TestApp::Draw）必须先 CPU 等待该帧槽的 fence，再 BeginFrame。
+// 生命周期约定：必须先 CPU 等待该帧槽的 fence 再 BeginFrame——由 D3DApp::BeginFrame 保证（调用发生在 Draw 中）。
 
 #pragma once
 

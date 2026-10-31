@@ -118,6 +118,8 @@ set(MENGINE_HEADERS
   ${CMAKE_SOURCE_DIR}/Common/FCamera.h
   ${CMAKE_SOURCE_DIR}/Common/FViewportCameraController.h
   ${CMAKE_SOURCE_DIR}/Common/FViewportCameraSettings.h
+  ${CMAKE_SOURCE_DIR}/Common/FFrameResource.h
+  ${CMAKE_SOURCE_DIR}/Common/FrameConfig.h
   ${CMAKE_SOURCE_DIR}/Common/FRenderPipeline.h
 
   ${CMAKE_SOURCE_DIR}/src/StepTimer.h

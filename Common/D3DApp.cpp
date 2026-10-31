@@ -71,8 +71,11 @@ int D3DApp::Run()
             CalculateFrameStats();
             // 相机先于子类 Update 推进，子类本帧读到的就是最新视图。
             CameraController.Tick(mTimer.DeltaTime());
+            // Update 只改 CPU 侧状态；会写 GPU 每帧资源的工作必须放在 Draw（BeginFrame 之后）。
             Update(mTimer);
+            BeginFrame();
             Draw(mTimer);
+            EndFrame();
         }
     }
     return static_cast<int>(msg.wParam);
@@ -230,14 +233,15 @@ bool D3DApp::InitDirect3D()
 
 void D3DApp::CreateCommandObjects()
 {
-    // 每个后备缓冲一个分配器（与帧槽一一对应：录制中/执行中的帧互不干扰）+ 一条复用的命令列表。
-    for (int i = 0; i < SwapChainBufferCount; ++i)
+    // 每个在飞帧一个分配器（录制中 / 执行中的帧互不干扰）+ 一条复用的命令列表。
+    for (uint32_t FrameIndex = 0; FrameIndex < NumFramesInFlight; ++FrameIndex)
     {
+        FrameResources[FrameIndex].FrameIndex = FrameIndex;
         D3D12_THROW_IF_FAILED(mDevice->CreateCommandAllocator(
-            D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&mDirectCmdListAlloc[i])));
+            D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&FrameResources[FrameIndex].CommandAllocator)));
     }
     D3D12_THROW_IF_FAILED(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-        mDirectCmdListAlloc[0].Get(), nullptr, IID_PPV_ARGS(&mCommandList)));
+        FrameResources[0].CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&mCommandList)));
     // 创建即 Close：D3D12 约定新建列表处于录制态，Reset 前必须先关闭。
     D3D12_THROW_IF_FAILED(mCommandList->Close());
     mQueueManager = std::make_unique<Direct3DQueueManager>(mDevice.Get());
@@ -294,9 +298,10 @@ void D3DApp::OnResize()
     mClientHeight = mClientHeight > 0 ? mClientHeight : 1;
 
     // GPU 可能仍引用旧的后备缓冲/深度缓冲：先排空队列再释放重建。
+    // 排空后所有帧槽都已空闲，借用当前帧槽的分配器录制重建命令是安全的。
     FlushCommandQueue();
     D3D12_THROW_IF_FAILED(mCommandList->Reset(
-        mDirectCmdListAlloc[mCurrentBackBuffer].Get(), nullptr));
+        FrameResources[CurrentFrameIndex].CommandAllocator.Get(), nullptr));
     for (auto& buffer : mSwapChainBuffer)
     {
         buffer.Reset();
@@ -354,6 +359,38 @@ void D3DApp::FlushCommandQueue()
     Direct3DQueue* graphicsQueue = mQueueManager->GetGraphicsQueue();
     const uint64 fenceValue = graphicsQueue->Signal();
     graphicsQueue->WaitForFenceCPUBlocking(fenceValue);
+}
+
+void D3DApp::BeginFrame()
+{
+    // 帧槽复用前必须等 GPU 完成它上一轮的命令：之后才能重置其分配器，
+    // 渲染器在 Draw 里按 FrameIndex 重置的每帧分区（上传环、实例分区）也因此安全。
+    FFrameResource& Frame = FrameResources[CurrentFrameIndex];
+    if (Frame.FenceValue != 0)
+    {
+        mQueueManager->GetGraphicsQueue()->WaitForFenceCPUBlocking(Frame.FenceValue);
+    }
+
+    D3D12_THROW_IF_FAILED(Frame.CommandAllocator->Reset());
+    D3D12_THROW_IF_FAILED(mCommandList->Reset(Frame.CommandAllocator.Get(), nullptr));
+
+    mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+        CurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+}
+
+void D3DApp::EndFrame()
+{
+    mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+        CurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+    // 队列实现负责 Close 命令列表，返回值即本帧提交的 fence，下次复用该帧槽前等待它。
+    ID3D12CommandList* CommandLists[] = { mCommandList.Get() };
+    FrameResources[CurrentFrameIndex].FenceValue =
+        mQueueManager->GetGraphicsQueue()->ExecuteCommandLists(_countof(CommandLists), CommandLists);
+
+    D3D12_THROW_IF_FAILED(mSwapChain->Present(0, 0));
+    mCurrentBackBuffer = mSwapChain->GetCurrentBackBufferIndex();
+    CurrentFrameIndex = (CurrentFrameIndex + 1) % NumFramesInFlight;
 }
 
 LRESULT CALLBACK D3DApp::MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

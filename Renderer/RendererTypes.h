@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "FrameConfig.h"
+
 #include <cstdint>
 
 // ---- 句柄 ----
@@ -103,5 +105,5 @@ inline namespace RendererLimits
     constexpr uint32_t BindlessSrvCount = 16384;    // bindless CBV/SRV/UAV 堆大小
     constexpr uint32_t FirstTextureBindlessSlot = 1;// 堆槽 0 固定给实例缓冲，纹理从 1 开始
     constexpr uint32_t MaxInstancesPerFrame = 4096; // 每帧槽的实例容量
-    constexpr uint32_t NumFrameSlots = 3;           // 与 D3DApp::SwapChainBufferCount 对齐
+    constexpr uint32_t NumFrameSlots = NumFramesInFlight;   // 每帧分区数 = 在飞帧数（Common/FrameConfig.h）
 }

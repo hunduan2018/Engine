@@ -65,7 +65,7 @@ public:
     void RegisterMaterial(FMaterial* material, const FVertexFactory* vertexFactory);
 
     // ---- 每帧流程 ----
-    // 须在该帧槽 fence CPU 等待之后调用。
+    // 须在该帧槽 fence CPU 等待之后调用（在 D3DApp 子类的 Draw 中调用即满足，框架已在 BeginFrame 中等待）。
     void BeginFrame(uint32_t frameSlot);
     // 写入本帧视图常量（b0 内容）。
     void UpdateView(const FSceneView& view);
