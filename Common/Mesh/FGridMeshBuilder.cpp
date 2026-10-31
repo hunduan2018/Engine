@@ -69,12 +69,12 @@ FStaticMesh FBoxMeshBuilder::BuildBox(float size)
     const float uvScale = 1.0f / 20.0f;
     mesh.Vertices.reserve(24);
     mesh.Indices.reserve(36);
-    const auto appendVertex = [&mesh, uvScale](float x, float y, float z, float nx, float ny, float nz, float u, float v) -> uint32_t
+    const auto appendVertex = [&mesh, uvScale,size](float x, float y, float z, float nx, float ny, float nz, float u, float v) -> uint32_t
     {
         FStaticMeshVertex vertex = {};
         vertex.Position = FVector3(x, y, z);
         vertex.Normal = FVector3(nx, ny, nz);
-        vertex.UV0 = FVector2(u * uvScale, v * uvScale);
+        vertex.UV0 = FVector2(u * uvScale * size, v * uvScale * size);
         vertex.Tangent = FVector3(1.0f, 0.0f, 0.0f); // 简化处理，实际应根据法线计算切线
         const uint32_t index = static_cast<uint32_t>(mesh.Vertices.size());
         mesh.Vertices.push_back(vertex);
