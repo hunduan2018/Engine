@@ -72,26 +72,8 @@ public:
 
      virtual void Draw(const GameTimer& timer) override
      {
-         const UINT frameIndex = mCurrentBackBuffer;
-         const UINT64 frameFence = mFrameFenceValues[frameIndex];
-         if (frameFence != 0)
-         {
-             mQueueManager->GetGraphicsQueue()->WaitForFenceCPUBlocking(frameFence);
-         }
-
-         // 渲染器帧状态重置必须发生在该帧槽 fence 等待之后（上传环/实例缓冲生命周期约定）。
-         Renderer->BeginFrame(frameIndex);
-
-         // Reset the command list allocator for the current frame
-         D3D12_THROW_IF_FAILED(mDirectCmdListAlloc[frameIndex]->Reset());
-
-         // Reset the command list with the current command allocator and no initial pipeline state
-         D3D12_THROW_IF_FAILED(mCommandList->Reset(mDirectCmdListAlloc[frameIndex].Get(), nullptr));
-
-         mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-             CurrentBackBuffer(),
-             D3D12_RESOURCE_STATE_PRESENT,
-             D3D12_RESOURCE_STATE_RENDER_TARGET));
+         // 框架已在 BeginFrame 中等待本帧槽 fence：此处按帧槽重置渲染器的每帧分区是安全的。
+         Renderer->BeginFrame(GetCurrentFrame().FrameIndex);
 
          mCommandList->RSSetScissorRects(1, &mScissorRect);
          mCommandList->RSSetViewports(1, &mScreenViewport);
@@ -123,19 +105,6 @@ public:
 
          Renderer->UpdateView(view);
          Renderer->RenderScene(Scene, mCommandList.Get());
-
-         mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-             CurrentBackBuffer(),
-             D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-
-         ID3D12CommandList* commandLists[] = { mCommandList.Get() };
-         mFrameFenceValues[frameIndex] =
-             mQueueManager->GetGraphicsQueue()->ExecuteCommandLists(
-                 _countof(commandLists), commandLists);
-
-         // Present the frame
-         D3D12_THROW_IF_FAILED(mSwapChain->Present(0, 0));
-         mCurrentBackBuffer = mSwapChain->GetCurrentBackBufferIndex();
      }
 
      // ---- 应用快捷键（相机漫游由 D3DApp 统一处理）----
@@ -171,7 +140,7 @@ public:
         Renderer = std::make_unique<FRenderer>();
         Renderer->Initialize(
             device,
-            mDirectCmdListAlloc[0].Get(),   // 仅初始化期使用；FlushInitUploads 后 GPU 已空闲
+            FrameResources[0].CommandAllocator.Get(),   // 仅初始化期使用；FlushInitUploads 后 GPU 已空闲
             commandList,
             mQueueManager->GetGraphicsQueue(),
             mBackBufferFormat, mDepthStencilFormat);

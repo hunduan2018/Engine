@@ -11,6 +11,8 @@
 #include "DescriptorHeapManagement.h"
 #include "FCamera.h"
 #include "FViewportCameraController.h"
+#include "FFrameResource.h"
+#include "FrameConfig.h"
 
 #include <Windowsx.h>
 #include <d3d12.h>
@@ -52,6 +54,8 @@ public:
 protected:
     virtual void OnResize();
     virtual void Update(const GameTimer& timer) = 0;
+    // 调用时框架已完成 BeginFrame：本帧槽的 GPU 工作已结束、命令列表处于录制状态、
+    // 后备缓冲已转为 RENDER_TARGET。子类只录制本帧命令，提交与 Present 由 EndFrame 完成。
     virtual void Draw(const GameTimer& timer) = 0;
 
     virtual void OnKeyDown(WPARAM key) {}
@@ -66,6 +70,7 @@ protected:
 
 	ID3D12Resource* CurrentBackBuffer() const { return mSwapChainBuffer[mCurrentBackBuffer].Get(); }
 	ID3D12Resource* DepthStencilBuffer() const { return mDepthStencilBuffer.Get(); }
+    const FFrameResource& GetCurrentFrame() const { return FrameResources[CurrentFrameIndex]; }
 
     void FlushCommandQueue();
     void CreateCommandObjects();
@@ -75,10 +80,11 @@ protected:
     Microsoft::WRL::ComPtr<ID3D12Device> mDevice;
 
     std::unique_ptr<Direct3DQueueManager> mQueueManager;
-	// Command queue for direct command list type
-    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc[SwapChainBufferCount];
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
-    UINT64 mFrameFenceValues[SwapChainBufferCount] = {};
+
+    // 在飞帧资源：帧槽按 CurrentFrameIndex 轮转，与交换链后备缓冲索引解耦。
+    FFrameResource FrameResources[NumFramesInFlight];
+    uint32_t CurrentFrameIndex = 0;
 
     Microsoft::WRL::ComPtr<IDXGISwapChain4> mSwapChain;
     std::unique_ptr<DescriptorHeap> mRtvHeap;
@@ -117,6 +123,11 @@ protected:
     bool InitDirect3D();
 
     void CalculateWindowSize(UINT clientWidth, UINT clientHeight, RECT& windowRect) const;
+
+private:
+    // 帧生命周期由框架独占，子类无法打乱"先等 fence、再复用"的顺序。
+    void BeginFrame();
+    void EndFrame();
 
 protected:
 	static D3DApp* mApp;
