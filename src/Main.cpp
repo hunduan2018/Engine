@@ -244,11 +244,19 @@ public:
         GroundMesh = std::make_unique<FMeshRenderData>(
             CreateMeshRenderData(device, commandList, GroundStaticMesh, staticMeshFactory, uploadContext));
 
+		// ---- 材质：城市（VS+PS 基线）----
+		BoxMaterial = std::make_unique<FMaterial>();
+        BoxMaterial->VertexShader = shaderManager.LoadShader("shader_basepass_vert");
+        BoxMaterial->PixelShader = shaderManager.LoadShader("shader_basepass_pixel");
+        BoxMaterial->DiffuseSrvArrayIndex = GroundTexture->SrvArrayIndex;
+        BoxMaterial->Rasterizer = ERasterizerMode::SolidCullNone;
+		Renderer->RegisterMaterial(BoxMaterial.get(), staticMeshFactory);
+
         BoxMesh = std::make_unique<FMeshRenderData>(
             CreateMeshRenderData(device, commandList, BoxStaticMesh, staticMeshFactory, uploadContext));
 
         // ---- 场景：Box + 地面 + 4x4 城市实例网格（同网格同材质 -> 实例合并验证）----
-        Scene.AddPrimitive(BoxMesh.get(), CityMaterial.get(), MathHelper::Identity4x4());
+        Scene.AddPrimitive(BoxMesh.get(), BoxMaterial.get(), MathHelper::Identity4x4());
 
         // ---- 场景：地面 + 4x4 城市实例网格（同网格同材质 -> 实例合并验证）----
         Scene.AddPrimitive(GroundMesh.get(), GroundMaterial.get(), MathHelper::Identity4x4());
@@ -308,6 +316,7 @@ public:
     std::unique_ptr<FTextureResource> CityTexture;
     std::unique_ptr<FMaterial> CityMaterial;
 
+    std::unique_ptr<FMaterial> BoxMaterial;
     std::unique_ptr<FMeshRenderData> BoxMesh;
 
     std::unique_ptr<FMeshRenderData> GroundMesh;

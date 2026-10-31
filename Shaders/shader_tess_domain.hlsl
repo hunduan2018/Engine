@@ -1,4 +1,4 @@
-// shader_tess_domain.hlsl
+﻿// shader_tess_domain.hlsl
 // 域着色器：重心插值 -> 正弦位移（解析法线）-> 实例变换 -> 视口变换。
 // 输出与基线 VS（shader_basepass_vert）相同的 FPixelInput，复用同一像素着色器。
 
