@@ -1,4 +1,4 @@
-// shader_tess_hull.hlsl
+﻿// shader_tess_hull.hlsl
 // 外壳着色器：3 控制点直通；补丁常量从材质常量读取细分因子。
 
 #include "shader_common.hlsli"
@@ -26,7 +26,7 @@ struct FPatchTessFactors
 };
 
 [domain("tri")]
-[partitioning("integer")]
+[partitioning("fractional_odd")]
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(3)]
 [patchconstantfunc("ConstantHS")]
@@ -43,7 +43,7 @@ FHullOutput HSMain(InputPatch<FHullInput, 3> patch, uint controlPointID : SV_Out
 FPatchTessFactors ConstantHS(InputPatch<FHullInput, 3> patch, uint patchID : SV_PrimitiveID)
 {
     FPatchTessFactors factors;
-    const float tessFactor = max(g_TessellationFactor, 1.0f);
+    const float tessFactor = max(g_TessellationFactor, 11.0f);
     factors.EdgeTessFactor[0] = tessFactor;
     factors.EdgeTessFactor[1] = tessFactor;
     factors.EdgeTessFactor[2] = tessFactor;
